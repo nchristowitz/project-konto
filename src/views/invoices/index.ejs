@@ -1,0 +1,47 @@
+<%- include('../header') %>
+<div class="page-header">
+  <h1>Invoices</h1>
+  <a href="/invoices/new" class="btn">New invoice</a>
+</div>
+
+<div class="filters">
+  <a href="/invoices" class="filter-tag <%= !filters.status ? 'active' : '' %>">All</a>
+  <a href="/invoices?status=draft" class="filter-tag <%= filters.status === 'draft' ? 'active' : '' %>">Draft</a>
+  <a href="/invoices?status=sent" class="filter-tag <%= filters.status === 'sent' ? 'active' : '' %>">Sent</a>
+  <a href="/invoices?status=viewed" class="filter-tag <%= filters.status === 'viewed' ? 'active' : '' %>">Viewed</a>
+  <a href="/invoices?status=paid" class="filter-tag <%= filters.status === 'paid' ? 'active' : '' %>">Paid</a>
+  <a href="/invoices?status=overdue" class="filter-tag <%= filters.status === 'overdue' ? 'active' : '' %>">Overdue</a>
+  <a href="/invoices?status=cancelled" class="filter-tag <%= filters.status === 'cancelled' ? 'active' : '' %>">Cancelled</a>
+</div>
+
+<% if (invoices.length === 0) { %>
+  <p class="empty">No invoices yet.</p>
+<% } else { %>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Due</th>
+          <th class="text-right">Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const inv of invoices) { %>
+          <tr>
+            <td><a href="/invoices/<%= inv.id %>" class="mono"><%= inv.number %></a></td>
+            <td><%= inv.client_name %></td>
+            <td><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
+            <td><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
+            <td class="text-right mono"><%= inv.currency %> <%= Number(inv.total).toFixed(2) %></td>
+            <td><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('../footer') %>

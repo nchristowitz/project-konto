@@ -1,0 +1,112 @@
+<%- include('header') %>
+<h1>Settings</h1>
+
+<div class="card">
+  <h2>Business Profile</h2>
+  <form method="POST" action="/settings/profile">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="name">Business name</label>
+        <input type="text" id="name" name="name" value="<%= profile ? profile.name : '' %>" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="<%= profile ? profile.email : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone" value="<%= profile ? profile.phone : '' %>">
+      </div>
+      <div class="form-group full">
+        <label for="address_line1">Address line 1</label>
+        <input type="text" id="address_line1" name="address_line1" value="<%= profile ? profile.address_line1 : '' %>">
+      </div>
+      <div class="form-group full">
+        <label for="address_line2">Address line 2</label>
+        <input type="text" id="address_line2" name="address_line2" value="<%= profile ? profile.address_line2 : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city" value="<%= profile ? profile.city : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="postal_code">Postal code</label>
+        <input type="text" id="postal_code" name="postal_code" value="<%= profile ? profile.postal_code : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="country_code">Country code</label>
+        <input type="text" id="country_code" name="country_code" maxlength="2" value="<%= profile ? profile.country_code : 'DE' %>">
+      </div>
+      <div class="form-group">
+        <label for="website">Website</label>
+        <input type="text" id="website" name="website" value="<%= profile ? profile.website : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="vat_number">VAT number</label>
+        <input type="text" id="vat_number" name="vat_number" value="<%= profile ? profile.vat_number : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="tax_number">Tax number</label>
+        <input type="text" id="tax_number" name="tax_number" value="<%= profile ? profile.tax_number : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="bank_name">Bank name</label>
+        <input type="text" id="bank_name" name="bank_name" value="<%= profile ? profile.bank_name : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="iban">IBAN</label>
+        <input type="text" id="iban" name="iban" value="<%= profile ? profile.iban : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="bic">BIC</label>
+        <input type="text" id="bic" name="bic" value="<%= profile ? profile.bic : '' %>">
+      </div>
+    </div>
+    <button type="submit">Save profile</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Defaults & Reminders</h2>
+  <form method="POST" action="/settings">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="default_currency">Default currency</label>
+        <input type="text" id="default_currency" name="default_currency" maxlength="3" value="<%= settings.default_currency %>">
+      </div>
+      <div class="form-group">
+        <label for="default_vat_rate">Default VAT rate (%)</label>
+        <input type="number" id="default_vat_rate" name="default_vat_rate" step="0.01" value="<%= settings.default_vat_rate %>">
+      </div>
+      <div class="form-group">
+        <label for="default_payment_terms">Payment terms (days)</label>
+        <input type="number" id="default_payment_terms" name="default_payment_terms" value="<%= settings.default_payment_terms %>">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="reminder_enabled" <%= settings.reminder_enabled ? 'checked' : '' %>>
+          Enable overdue reminders
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="reminder_interval_days">Reminder interval (days)</label>
+        <input type="number" id="reminder_interval_days" name="reminder_interval_days" value="<%= settings.reminder_interval_days %>">
+      </div>
+      <div class="form-group">
+        <label for="max_reminders">Max reminders</label>
+        <input type="number" id="max_reminders" name="max_reminders" value="<%= settings.max_reminders %>">
+      </div>
+      <div class="form-group full">
+        <label for="default_payment_details">Default payment details</label>
+        <textarea id="default_payment_details" name="default_payment_details" rows="4"><%= settings.default_payment_details || '' %></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="default_notes">Default invoice notes</label>
+        <textarea id="default_notes" name="default_notes" rows="3"><%= settings.default_notes || '' %></textarea>
+      </div>
+    </div>
+    <button type="submit">Save settings</button>
+  </form>
+</div>
+<%- include('footer') %>

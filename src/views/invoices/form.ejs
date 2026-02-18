@@ -1,0 +1,128 @@
+<%- include('../header') %>
+<h1><%= invoice ? 'Edit Invoice ' + invoice.number : 'New Invoice' %></h1>
+
+<div class="card">
+  <form method="POST" action="<%= invoice ? '/invoices/' + invoice.id : '/invoices' %>" id="invoice-form">
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="client_id">Client</label>
+        <select id="client_id" name="client_id" required>
+          <option value="">Select client...</option>
+          <% for (const c of clients) { %>
+            <option value="<%= c.id %>"
+              data-currency="<%= c.currency %>"
+              data-vat="<%= c.default_vat_rate %>"
+              data-terms="<%= c.payment_terms_days %>"
+              <%= (invoice && invoice.client_id === c.id) || (selectedClient && selectedClient.id === c.id) ? 'selected' : '' %>
+            ><%= c.name %></option>
+          <% } %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="currency">Currency</label>
+        <input type="text" id="currency" name="currency" maxlength="3" value="<%= invoice ? invoice.currency : (selectedClient ? selectedClient.currency : settings.default_currency) %>">
+      </div>
+      <div class="form-group">
+        <label for="issue_date">Issue date</label>
+        <input type="date" id="issue_date" name="issue_date" value="<%= invoice ? new Date(invoice.issue_date).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>" required>
+      </div>
+      <div class="form-group">
+        <label for="due_date">Due date</label>
+        <input type="date" id="due_date" name="due_date" value="<%= invoice && invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0,10) : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="vat_rate">VAT rate (%)</label>
+        <input type="number" id="vat_rate" name="vat_rate" step="0.01" value="<%= invoice ? invoice.vat_rate : (selectedClient ? selectedClient.default_vat_rate : settings.default_vat_rate) %>">
+      </div>
+      <div class="form-group">
+        <label for="vat_label">VAT label</label>
+        <input type="text" id="vat_label" name="vat_label" value="<%= invoice ? invoice.vat_label : 'VAT' %>">
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="reverse_charge" id="reverse_charge" <%= invoice && invoice.reverse_charge ? 'checked' : '' %>>
+          Reverse charge
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="vat_note">VAT note</label>
+        <input type="text" id="vat_note" name="vat_note" value="<%= invoice ? invoice.vat_note || '' : '' %>">
+      </div>
+    </div>
+
+    <h2>Items</h2>
+    <div id="line-items">
+      <% const itemLines = lines.length ? lines : [{ description: '', detail: '', quantity: 1, unit_code: 'HUR', unit_price: '' }]; %>
+      <% for (let i = 0; i < itemLines.length; i++) { %>
+        <div class="line-item">
+          <div class="line-item-fields">
+            <div class="form-group line-desc">
+              <label>Description</label>
+              <input type="text" name="descriptions" value="<%= itemLines[i].description %>" placeholder="Description" required>
+            </div>
+            <div class="form-group line-qty">
+              <label>Qty</label>
+              <input type="number" name="quantities" step="0.001" value="<%= itemLines[i].quantity %>" class="qty-input">
+            </div>
+            <div class="form-group line-unit">
+              <label>Unit</label>
+              <select name="unit_codes">
+                <option value="HUR" <%= itemLines[i].unit_code === 'HUR' ? 'selected' : '' %>>hr</option>
+                <option value="DAY" <%= itemLines[i].unit_code === 'DAY' ? 'selected' : '' %>>day</option>
+                <option value="EA" <%= itemLines[i].unit_code === 'EA' ? 'selected' : '' %>>ea</option>
+                <option value="MON" <%= itemLines[i].unit_code === 'MON' ? 'selected' : '' %>>mo</option>
+                <option value="C62" <%= itemLines[i].unit_code === 'C62' ? 'selected' : '' %>>unit</option>
+              </select>
+            </div>
+            <div class="form-group line-price">
+              <label>Rate</label>
+              <input type="number" name="unit_prices" step="0.01" value="<%= itemLines[i].unit_price %>" placeholder="0.00" class="price-input">
+            </div>
+            <div class="form-group line-total-display">
+              <label>Total</label>
+              <span class="line-total-value">0.00</span>
+            </div>
+            <button type="button" class="remove-line" title="Remove">&times;</button>
+          </div>
+          <div class="form-group line-detail">
+            <input type="text" name="details" value="<%= itemLines[i].detail || '' %>" placeholder="Detail (optional)">
+          </div>
+        </div>
+      <% } %>
+    </div>
+    <button type="button" id="add-line" class="btn-secondary">+ Add item</button>
+
+    <h2>Payment Details</h2>
+    <div class="form-grid">
+      <div class="form-group full">
+        <textarea name="payment_details" rows="4"><%= invoice ? invoice.payment_details || '' : settings.default_payment_details || '' %></textarea>
+      </div>
+    </div>
+
+    <h2>Notes</h2>
+    <div class="form-grid">
+      <div class="form-group full">
+        <textarea name="notes" rows="3" placeholder="Shown on invoice"><%= invoice ? invoice.notes || '' : settings.default_notes || '' %></textarea>
+      </div>
+      <div class="form-group full">
+        <label for="internal_notes">Internal notes (not shown to client)</label>
+        <textarea id="internal_notes" name="internal_notes" rows="2"><%= invoice ? invoice.internal_notes || '' : '' %></textarea>
+      </div>
+    </div>
+
+    <div class="invoice-summary">
+      <div class="summary-row"><span>Subtotal</span><span id="subtotal">0.00</span></div>
+      <div class="summary-row"><span id="vat-label">VAT 0%</span><span id="vat-total">0.00</span></div>
+      <div class="summary-row total"><span>Total</span><span id="grand-total">0.00</span></div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit">Save draft</button>
+      <a href="/invoices" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script src="/invoice-form.js"></script>
+<%- include('../footer') %>

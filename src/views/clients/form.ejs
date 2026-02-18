@@ -1,0 +1,71 @@
+<%- include('../header') %>
+<h1><%= client ? 'Edit Client' : 'New Client' %></h1>
+
+<div class="card">
+  <form method="POST" action="<%= client ? '/clients/' + client.id : '/clients' %>">
+    <div class="form-grid">
+      <div class="form-group full">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" value="<%= client ? client.name : '' %>" required>
+      </div>
+      <div class="form-group">
+        <label for="contact_person">Contact person</label>
+        <input type="text" id="contact_person" name="contact_person" value="<%= client ? client.contact_person : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="<%= client ? client.email : '' %>">
+      </div>
+      <div class="form-group full">
+        <label for="address_line1">Address line 1</label>
+        <input type="text" id="address_line1" name="address_line1" value="<%= client ? client.address_line1 : '' %>">
+      </div>
+      <div class="form-group full">
+        <label for="address_line2">Address line 2</label>
+        <input type="text" id="address_line2" name="address_line2" value="<%= client ? client.address_line2 : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city" value="<%= client ? client.city : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="postal_code">Postal code</label>
+        <input type="text" id="postal_code" name="postal_code" value="<%= client ? client.postal_code : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="country_code">Country code</label>
+        <input type="text" id="country_code" name="country_code" maxlength="2" value="<%= client ? client.country_code : 'DE' %>">
+      </div>
+      <div class="form-group">
+        <label for="vat_number">VAT number</label>
+        <input type="text" id="vat_number" name="vat_number" value="<%= client ? client.vat_number : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="currency">Currency</label>
+        <input type="text" id="currency" name="currency" maxlength="3" value="<%= client ? client.currency : 'EUR' %>">
+      </div>
+      <div class="form-group">
+        <label for="default_vat_rate">Default VAT rate (%)</label>
+        <input type="number" id="default_vat_rate" name="default_vat_rate" step="0.01" value="<%= client ? client.default_vat_rate : '19.00' %>">
+      </div>
+      <div class="form-group">
+        <label for="payment_terms_days">Payment terms (days)</label>
+        <input type="number" id="payment_terms_days" name="payment_terms_days" value="<%= client ? client.payment_terms_days : '30' %>">
+      </div>
+      <div class="form-group full">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3"><%= client ? client.notes || '' : '' %></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit"><%= client ? 'Save changes' : 'Create client' %></button>
+      <a href="/clients" class="btn-secondary">Cancel</a>
+      <% if (client) { %>
+        <form method="POST" action="/clients/<%= client.id %>/archive" class="inline-form">
+          <button type="submit" class="btn-danger" onclick="return confirm('Archive this client?')">Archive</button>
+        </form>
+      <% } %>
+    </div>
+  </form>
+</div>
+<%- include('../footer') %>

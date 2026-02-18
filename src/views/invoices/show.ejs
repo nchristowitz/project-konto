@@ -1,0 +1,208 @@
+<%- include('../header') %>
+<% if (query.sent) { %>
+  <div class="notice notice-success">
+    Invoice sent.
+    <% if (query.preview) { %><a href="<%= query.preview %>" target="_blank">View email preview</a><% } %>
+  </div>
+<% } %>
+<% if (query.reminded) { %>
+  <div class="notice notice-success">
+    Reminder sent.
+    <% if (query.preview) { %><a href="<%= query.preview %>" target="_blank">View email preview</a><% } %>
+  </div>
+<% } %>
+<% if (query.error === 'send_failed') { %>
+  <div class="notice notice-error">Failed to send email. Check that the client has an email address.</div>
+<% } %>
+<% if (query.error === 'remind_failed') { %>
+  <div class="notice notice-error">Failed to send reminder.</div>
+<% } %>
+<div class="page-header">
+  <h1>Invoice <%= invoice.number %></h1>
+  <div class="header-actions">
+    <% if (invoice.status === 'draft') { %>
+      <a href="/invoices/<%= invoice.id %>/edit" class="btn">Edit</a>
+    <% } %>
+    <a href="/i/<%= invoice.view_token %>" class="btn-secondary" target="_blank">Public link</a>
+  </div>
+</div>
+
+<div class="invoice-meta">
+  <div class="meta-row">
+    <span class="meta-label">Status</span>
+    <span class="status status-<%= invoice.status %>"><%= invoice.status %></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Client</span>
+    <span><a href="/clients/<%= invoice.client_id %>"><%= invoice.client_name %></a></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Issue date</span>
+    <span><%= invoice.issue_date ? new Date(invoice.issue_date).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Due date</span>
+    <span><%= invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <% if (invoice.view_count > 0) { %>
+  <div class="meta-row">
+    <span class="meta-label">Views</span>
+    <span><%= invoice.view_count %> (first: <%= invoice.first_viewed_at ? new Date(invoice.first_viewed_at).toISOString().slice(0, 16).replace('T', ' ') : '' %>)</span>
+  </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="text-right">Qty</th>
+        <th>Unit</th>
+        <th class="text-right">Rate</th>
+        <th class="text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const line of lines) { %>
+        <tr>
+          <td>
+            <%= line.description %>
+            <% if (line.detail) { %>
+              <div class="line-detail-text"><%= line.detail %></div>
+            <% } %>
+          </td>
+          <td class="text-right mono"><%= Number(line.quantity) %></td>
+          <td><%= line.unit_code %></td>
+          <td class="text-right mono"><%= Number(line.unit_price).toFixed(2) %></td>
+          <td class="text-right mono"><%= Number(line.line_total).toFixed(2) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+  <div class="invoice-summary">
+    <div class="summary-row"><span>Subtotal</span><span class="mono"><%= Number(invoice.subtotal).toFixed(2) %></span></div>
+    <div class="summary-row"><span><%= invoice.vat_label %> <%= Number(invoice.vat_rate) %>%</span><span class="mono"><%= Number(invoice.vat_amount).toFixed(2) %></span></div>
+    <div class="summary-row total"><span>Total</span><span class="mono"><%= invoice.currency %> <%= Number(invoice.total).toFixed(2) %></span></div>
+    <% if (Number(invoice.amount_paid) > 0) { %>
+      <div class="summary-row"><span>Paid</span><span class="mono"><%= Number(invoice.amount_paid).toFixed(2) %></span></div>
+      <div class="summary-row total"><span>Balance</span><span class="mono"><%= invoice.currency %> <%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %></span></div>
+    <% } %>
+  </div>
+</div>
+
+<% if (invoice.payment_details) { %>
+  <div class="card">
+    <h2>Payment Details</h2>
+    <pre class="pre-wrap"><%= invoice.payment_details %></pre>
+  </div>
+<% } %>
+
+<% if (invoice.notes) { %>
+  <div class="card">
+    <h2>Notes</h2>
+    <p><%= invoice.notes %></p>
+  </div>
+<% } %>
+
+<% if (invoice.internal_notes) { %>
+  <div class="card">
+    <h2>Internal Notes</h2>
+    <p class="text-secondary"><%= invoice.internal_notes %></p>
+  </div>
+<% } %>
+
+<% if (invoice.status !== 'draft' && invoice.status !== 'cancelled') { %>
+<div class="card">
+  <h2>Payments</h2>
+  <% if (payments.length > 0) { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="text-right">Amount</th>
+          <th>Method</th>
+          <th>Reference</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const p of payments) { %>
+          <tr>
+            <td><%= new Date(p.paid_at).toISOString().slice(0, 10) %></td>
+            <td class="text-right mono"><%= Number(p.amount).toFixed(2) %></td>
+            <td><%= p.method || '' %></td>
+            <td><%= p.reference || '' %></td>
+            <td>
+              <form method="POST" action="/invoices/<%= invoice.id %>/payments/<%= p.id %>/delete" class="inline-form">
+                <button type="submit" class="btn-danger btn-small" onclick="return confirm('Remove this payment?')">&times;</button>
+              </form>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+  <details class="payment-form-toggle">
+    <summary>Record payment</summary>
+    <form method="POST" action="/invoices/<%= invoice.id %>/payments" class="payment-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="pay_amount">Amount</label>
+          <input type="number" id="pay_amount" name="amount" step="0.01" value="<%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %>" required>
+        </div>
+        <div class="form-group">
+          <label for="pay_date">Date</label>
+          <input type="date" id="pay_date" name="paid_at" value="<%= new Date().toISOString().slice(0, 10) %>">
+        </div>
+        <div class="form-group">
+          <label for="pay_method">Method</label>
+          <select id="pay_method" name="method">
+            <option value="bank_transfer">Bank transfer</option>
+            <option value="paypal">PayPal</option>
+            <option value="cash">Cash</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="pay_ref">Reference</label>
+          <input type="text" id="pay_ref" name="reference" placeholder="Transaction ref">
+        </div>
+      </div>
+      <button type="submit">Record payment</button>
+    </form>
+  </details>
+</div>
+<% } %>
+
+<div class="card">
+  <h2>Actions</h2>
+  <div class="form-actions">
+    <% if (invoice.status === 'draft') { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/send" class="inline-form">
+        <button type="submit">Send to client</button>
+      </form>
+      <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="sent">
+        <button type="submit" class="btn-secondary">Mark as sent (no email)</button>
+      </form>
+    <% } %>
+    <% if (['sent', 'viewed', 'overdue'].includes(invoice.status)) { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/remind" class="inline-form">
+        <button type="submit">Send reminder</button>
+      </form>
+      <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="paid">
+        <button type="submit">Mark as paid</button>
+      </form>
+    <% } %>
+    <% if (invoice.status !== 'cancelled' && invoice.status !== 'paid') { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="cancelled">
+        <button type="submit" class="btn-danger" onclick="return confirm('Cancel this invoice?')">Cancel invoice</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+<%- include('../footer') %>

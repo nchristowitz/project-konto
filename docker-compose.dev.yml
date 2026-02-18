@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: konto-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: konto
+      POSTGRES_USER: konto
+      POSTGRES_PASSWORD: konto_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - konto-pgdata:/var/lib/postgresql/data
+
+volumes:
+  konto-pgdata:

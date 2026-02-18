@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice <%= invoice.number %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="public-invoice-page">
+  <div class="invoice-toolbar">
+    <span>Invoice <%= invoice.number %></span>
+    <% if (invoice.pdf_filename) { %>
+      <a href="/i/<%= invoice.view_token %>/pdf">Download PDF</a>
+    <% } %>
+  </div>
+  <div class="invoice-document">
+    <div class="inv-header">
+      <div class="inv-from">
+        <% if (profile.name) { %>
+          <strong><%= profile.name %></strong><br>
+        <% } %>
+        <% if (profile.address_line1) { %><%= profile.address_line1 %><br><% } %>
+        <% if (profile.address_line2) { %><%= profile.address_line2 %><br><% } %>
+        <% if (profile.city || profile.postal_code) { %>
+          <%= profile.postal_code %> <%= profile.city %><% if (profile.country_code) { %>, <%= profile.country_code %><% } %><br>
+        <% } %>
+        <% if (profile.vat_number) { %>VAT: <%= profile.vat_number %><br><% } %>
+        <% if (profile.email) { %><%= profile.email %><br><% } %>
+      </div>
+    </div>
+
+    <div class="inv-title">INVOICE <%= invoice.number %></div>
+
+    <div class="inv-parties">
+      <div class="inv-to">
+        <div class="inv-label">Bill to:</div>
+        <strong><%= client.name %></strong><br>
+        <% if (client.contact_person) { %><%= client.contact_person %><br><% } %>
+        <% if (client.address_line1) { %><%= client.address_line1 %><br><% } %>
+        <% if (client.address_line2) { %><%= client.address_line2 %><br><% } %>
+        <% if (client.city || client.postal_code) { %>
+          <%= client.postal_code %> <%= client.city %><% if (client.country_code) { %>, <%= client.country_code %><% } %><br>
+        <% } %>
+        <% if (client.vat_number) { %>VAT: <%= client.vat_number %><br><% } %>
+      </div>
+      <div class="inv-dates">
+        <div class="inv-date-row"><span>Date:</span><span><%= invoice.issue_date ? new Date(invoice.issue_date).toISOString().slice(0,10) : '' %></span></div>
+        <% if (invoice.due_date) { %>
+          <div class="inv-date-row"><span>Due:</span><span><%= new Date(invoice.due_date).toISOString().slice(0,10) %></span></div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="inv-line-header">
+      <span class="inv-col-desc">Description</span>
+      <span class="inv-col-qty">Qty</span>
+      <span class="inv-col-amount">Amount</span>
+    </div>
+    <div class="inv-separator"></div>
+
+    <% for (const line of lines) { %>
+      <div class="inv-line">
+        <div class="inv-line-main">
+          <span class="inv-col-desc"><%= line.description %></span>
+          <span class="inv-col-qty"><%= Number(line.quantity) %> <%= line.unit_code.toLowerCase() %></span>
+          <span class="inv-col-amount"><%= Number(line.line_total).toFixed(2) %></span>
+        </div>
+        <% if (line.detail) { %>
+          <div class="inv-line-detail"><%= line.detail %></div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <div class="inv-separator"></div>
+
+    <div class="inv-totals">
+      <div class="inv-total-row">
+        <span>Subtotal</span>
+        <span><%= Number(invoice.subtotal).toFixed(2) %></span>
+      </div>
+      <div class="inv-total-row">
+        <span><%= invoice.vat_label %> <%= Number(invoice.vat_rate) %>%</span>
+        <span><%= Number(invoice.vat_amount).toFixed(2) %></span>
+      </div>
+      <% if (invoice.vat_note) { %>
+        <div class="inv-vat-note"><%= invoice.vat_note %></div>
+      <% } %>
+      <div class="inv-separator-short"></div>
+      <div class="inv-total-row inv-grand-total">
+        <span>Total <%= invoice.currency %></span>
+        <span><%= Number(invoice.total).toFixed(2) %></span>
+      </div>
+      <% if (Number(invoice.amount_paid) > 0) { %>
+        <div class="inv-total-row">
+          <span>Paid</span>
+          <span><%= Number(invoice.amount_paid).toFixed(2) %></span>
+        </div>
+        <div class="inv-total-row inv-grand-total">
+          <span>Balance <%= invoice.currency %></span>
+          <span><%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %></span>
+        </div>
+      <% } %>
+    </div>
+
+    <% if (invoice.payment_details) { %>
+      <div class="inv-section">
+        <div class="inv-label">Payment details:</div>
+        <pre class="inv-pre"><%= invoice.payment_details %></pre>
+      </div>
+    <% } %>
+
+    <% if (invoice.notes) { %>
+      <div class="inv-section">
+        <p><%= invoice.notes %></p>
+      </div>
+    <% } %>
+
+    <% if (invoice.footer_text) { %>
+      <div class="inv-footer"><%= invoice.footer_text %></div>
+    <% } %>
+  </div>
+
+  <% if (invoice.status !== 'cancelled') { %>
+  <script>
+    setTimeout(function() {
+      fetch('/api/views/<%= invoice.view_token %>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }, 2000);
+  </script>
+  <% } %>
+</body>
+</html>

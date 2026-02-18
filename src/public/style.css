@@ -1,0 +1,724 @@
+:root {
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --text: #1a1a1a;
+  --text-secondary: #6b7280;
+  --bg: #ffffff;
+  --bg-subtle: #f9fafb;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --radius: 6px;
+  --size: 14px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--size);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+
+/* Navigation */
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 48px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-brand {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+}
+
+/* Main content */
+main {
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 0 24px;
+}
+
+/* Login */
+.login-container {
+  max-width: 320px;
+  margin: 120px auto;
+  text-align: center;
+}
+
+.login-container h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.login-container form {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 8px;
+}
+
+.login-container label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.login-container input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--size);
+}
+
+.login-container input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.login-container button {
+  margin-top: 12px;
+  padding: 8px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--size);
+  cursor: pointer;
+}
+
+.login-container button:hover {
+  opacity: 0.85;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* Headings */
+h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* Cards */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+/* Forms */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group.full {
+  grid-column: 1 / -1;
+}
+
+label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+input, select, textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--size);
+  color: var(--text);
+  background: var(--bg);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: var(--size);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+}
+
+button {
+  padding: 8px 16px;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--size);
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+/* Page header with action */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  margin-bottom: 0;
+}
+
+/* Links styled as buttons */
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--text);
+  color: var(--bg);
+  text-decoration: none;
+  border-radius: var(--radius);
+  font-size: var(--size);
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn-secondary {
+  display: inline-block;
+  padding: 8px 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--size);
+}
+
+.btn-secondary:hover {
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--bg);
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: var(--bg);
+  opacity: 1;
+}
+
+/* Form actions */
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inline-form {
+  display: inline;
+  margin-left: auto;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+td a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+td a:hover {
+  color: var(--accent);
+}
+
+.empty {
+  color: var(--text-secondary);
+  padding: 32px 0;
+  text-align: center;
+}
+
+/* Notices */
+.notice {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.notice a {
+  margin-left: 8px;
+  color: inherit;
+  font-weight: 500;
+}
+
+.notice-success {
+  background: #f0fdf4;
+  color: var(--success);
+  border: 1px solid #bbf7d0;
+}
+
+.notice-error {
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+}
+
+/* Utilities */
+.text-right { text-align: right; }
+.text-secondary { color: var(--text-secondary); }
+.mono { font-family: var(--font-mono); font-size: 13px; }
+.pre-wrap { white-space: pre-wrap; font-size: var(--size); }
+
+/* Status badges */
+.status { font-size: 13px; }
+.status-draft { color: var(--text-secondary); }
+.status-sent { color: var(--text); }
+.status-viewed { color: var(--accent); }
+.status-paid { color: var(--success); }
+.status-partially_paid { color: var(--warning); }
+.status-overdue { color: var(--danger); }
+.status-cancelled { color: var(--text-secondary); text-decoration: line-through; }
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-tag {
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.filter-tag:hover { color: var(--text); }
+.filter-tag.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+/* Invoice form — line items */
+.line-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.line-item:last-child { border-bottom: none; }
+
+.line-item-fields {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+}
+
+.line-desc { flex: 3; }
+.line-qty { flex: 0 0 70px; }
+.line-unit { flex: 0 0 70px; }
+.line-price { flex: 0 0 100px; }
+.line-total-display {
+  flex: 0 0 80px;
+  text-align: right;
+}
+
+.line-total-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 37px;
+}
+
+.line-detail {
+  margin-top: 6px;
+}
+
+.line-detail input {
+  width: 100%;
+}
+
+.line-detail-text {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.remove-line {
+  flex: 0 0 32px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove-line:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  opacity: 1;
+}
+
+#add-line {
+  margin: 12px 0 24px;
+}
+
+/* Invoice summary block */
+.invoice-summary {
+  max-width: 280px;
+  margin-left: auto;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.summary-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-weight: 600;
+}
+
+/* Invoice meta (show page) */
+.invoice-meta {
+  margin-bottom: 20px;
+}
+
+.meta-row {
+  display: flex;
+  gap: 16px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.meta-label {
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Inline form fix for actions row */
+.form-actions .inline-form {
+  margin-left: 0;
+}
+
+/* Payment form */
+.payment-form-toggle {
+  margin-top: 12px;
+}
+
+.payment-form-toggle summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.payment-form-toggle summary:hover {
+  color: var(--text);
+}
+
+.payment-form {
+  margin-top: 12px;
+}
+
+.btn-small {
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+/* Dashboard */
+.section-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.overdue-label {
+  color: var(--danger);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.stat-row span:first-child {
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   Public invoice document — monospaced A4 aesthetic
+   ============================================================ */
+.public-invoice-page {
+  background: #e5e5e5;
+  min-height: 100vh;
+}
+
+.invoice-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.invoice-toolbar a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.invoice-toolbar a:hover {
+  color: var(--text);
+}
+
+.invoice-document {
+  max-width: 800px;
+  margin: 0 auto 40px;
+  padding: 60px;
+  background: #fff;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.inv-header {
+  margin-bottom: 40px;
+}
+
+.inv-from {
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.inv-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  letter-spacing: 0.05em;
+}
+
+.inv-parties {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.inv-to {
+  line-height: 1.7;
+}
+
+.inv-label {
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.inv-dates {
+  text-align: right;
+}
+
+.inv-date-row {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+}
+
+.inv-date-row span:first-child {
+  color: var(--text-secondary);
+}
+
+.inv-separator {
+  border-top: 1px solid var(--text);
+  margin: 8px 0;
+}
+
+.inv-separator-short {
+  border-top: 1px solid var(--text);
+  margin: 4px 0;
+}
+
+.inv-line-header {
+  display: flex;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.inv-col-desc { flex: 1; }
+.inv-col-qty { width: 100px; text-align: right; }
+.inv-col-amount { width: 100px; text-align: right; }
+
+.inv-line {
+  padding: 8px 0;
+}
+
+.inv-line-main {
+  display: flex;
+}
+
+.inv-line-detail {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 2px;
+  padding-left: 0;
+}
+
+.inv-totals {
+  max-width: 240px;
+  margin-left: auto;
+  margin-top: 16px;
+}
+
+.inv-total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.inv-grand-total {
+  font-weight: 700;
+  padding-top: 4px;
+}
+
+.inv-vat-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 2px 0;
+}
+
+.inv-section {
+  margin-top: 32px;
+}
+
+.inv-pre {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.inv-footer {
+  margin-top: 40px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}

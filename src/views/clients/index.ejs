@@ -1,0 +1,35 @@
+<%- include('../header') %>
+<div class="page-header">
+  <h1>Clients</h1>
+  <a href="/clients/new" class="btn">New client</a>
+</div>
+
+<% if (clients.length === 0) { %>
+  <p class="empty">No clients yet.</p>
+<% } else { %>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Contact</th>
+          <th>Email</th>
+          <th>Currency</th>
+          <th>VAT</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const client of clients) { %>
+          <tr>
+            <td><a href="/clients/<%= client.id %>"><%= client.name %></a></td>
+            <td><%= client.contact_person || '' %></td>
+            <td><%= client.email || '' %></td>
+            <td><%= client.currency %></td>
+            <td><%= client.default_vat_rate %>%</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('../footer') %>
