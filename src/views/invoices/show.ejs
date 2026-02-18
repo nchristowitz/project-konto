@@ -17,11 +17,25 @@
 <% if (query.error === 'remind_failed') { %>
   <div class="notice notice-error">Failed to send reminder.</div>
 <% } %>
+<% if (query.pdf_generated) { %>
+  <div class="notice notice-success">PDF generated.</div>
+<% } %>
+<% if (query.error === 'pdf_failed') { %>
+  <div class="notice notice-error">Failed to generate PDF.</div>
+<% } %>
 <div class="page-header">
   <h1>Invoice <%= invoice.number %></h1>
   <div class="header-actions">
     <% if (invoice.status === 'draft') { %>
       <a href="/invoices/<%= invoice.id %>/edit" class="btn">Edit</a>
+    <% } %>
+    <% if (invoice.status !== 'draft') { %>
+      <% if (invoice.pdf_filename) { %>
+        <a href="/invoices/<%= invoice.id %>/pdf" class="btn-secondary">Download PDF</a>
+      <% } %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/pdf" class="inline-form">
+        <button type="submit" class="btn-secondary"><%= invoice.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
+      </form>
     <% } %>
     <a href="/i/<%= invoice.view_token %>" class="btn-secondary" target="_blank">Public link</a>
   </div>

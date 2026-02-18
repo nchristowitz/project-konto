@@ -1,4 +1,6 @@
 const { Router } = require('express');
+const path = require('path');
+const fs = require('fs');
 const { pool } = require('../db');
 
 const router = Router();
@@ -29,6 +31,23 @@ router.get('/i/:token', async (req, res) => {
     profile: profileRows[0] || {},
     client: invoice.client_snapshot,
   });
+});
+
+// GET /i/:token/pdf — download invoice PDF
+router.get('/i/:token/pdf', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM invoices WHERE view_token = $1', [req.params.token]
+  );
+  if (!rows.length) return res.status(404).send('Invoice not found');
+
+  const invoice = rows[0];
+  if (invoice.status === 'draft') return res.status(404).send('Invoice not found');
+  if (!invoice.pdf_filename) return res.status(404).send('PDF not available');
+
+  const filePath = path.join(process.cwd(), 'data', 'invoices', invoice.pdf_filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('PDF file not found');
+
+  res.download(filePath, `Invoice-${invoice.number}.pdf`);
 });
 
 // POST /api/views/:token — view tracking beacon

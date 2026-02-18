@@ -1,8 +1,11 @@
 const { Router } = require('express');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const { pool } = require('../db');
 const { getNextInvoiceNumber } = require('../services/invoiceNumber');
 const { sendInvoiceEmail, sendReminderEmail } = require('../services/email');
+const { generateEInvoice } = require('../services/einvoice');
 
 const router = Router();
 
@@ -332,6 +335,36 @@ router.post('/:id', async (req, res) => {
   }
 });
 
+// POST /invoices/:id/pdf — generate or regenerate PDF
+router.post('/:id/pdf', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM invoices WHERE id = $1', [req.params.id]
+  );
+  if (!rows.length) return res.status(404).send('Invoice not found');
+
+  try {
+    await generateEInvoice(rows[0].id);
+    res.redirect(`/invoices/${rows[0].id}?pdf_generated=1`);
+  } catch (err) {
+    console.error(`Failed to generate PDF for invoice ${rows[0].number}:`, err);
+    res.redirect(`/invoices/${rows[0].id}?error=pdf_failed`);
+  }
+});
+
+// GET /invoices/:id/pdf — download the PDF
+router.get('/:id/pdf', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM invoices WHERE id = $1', [req.params.id]
+  );
+  if (!rows.length) return res.status(404).send('Invoice not found');
+  if (!rows[0].pdf_filename) return res.status(404).send('PDF not generated yet');
+
+  const filePath = path.join(process.cwd(), 'data', 'invoices', rows[0].pdf_filename);
+  if (!fs.existsSync(filePath)) return res.status(404).send('PDF file not found');
+
+  res.download(filePath, `Invoice-${rows[0].number}.pdf`);
+});
+
 // POST /invoices/:id/send — send invoice email to client
 router.post('/:id/send', async (req, res) => {
   const { rows } = await pool.query(
@@ -343,6 +376,20 @@ router.post('/:id/send', async (req, res) => {
   if (invoice.status === 'cancelled') return res.status(400).send('Cannot send cancelled invoice');
 
   try {
+    // Auto-generate PDF before sending if not already generated
+    if (!invoice.pdf_filename) {
+      try {
+        await generateEInvoice(invoice.id);
+        // Refresh invoice to get updated pdf_filename
+        const { rows: refreshed } = await pool.query(
+          'SELECT pdf_filename FROM invoices WHERE id = $1', [invoice.id]
+        );
+        invoice.pdf_filename = refreshed[0].pdf_filename;
+      } catch (pdfErr) {
+        console.error(`PDF generation failed for invoice ${invoice.number}, sending without PDF:`, pdfErr);
+      }
+    }
+
     const result = await sendInvoiceEmail(invoice);
 
     // Update status to sent if currently draft

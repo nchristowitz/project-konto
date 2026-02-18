@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const nodemailer = require('nodemailer');
 const config = require('../config');
 const { pool } = require('../db');
@@ -44,7 +46,7 @@ async function sendInvoiceEmail(invoice) {
   const contactName = invoice.client_snapshot?.contact_person || invoice.client_snapshot?.name || 'there';
   const link = `${config.baseUrl}/i/${invoice.view_token}`;
 
-  const info = await transport.sendMail({
+  const mailOptions = {
     from: config.emailFrom || '"Konto" <noreply@localhost>',
     to: clientEmail,
     subject: `Invoice ${invoice.number} from ${config.senderName || 'Konto'}`,
@@ -57,7 +59,20 @@ ${invoice.due_date ? `Due date: ${new Date(invoice.due_date).toISOString().slice
 
 Best regards,
 ${config.senderName || 'Konto'}`,
-  });
+  };
+
+  // Attach PDF if available
+  if (invoice.pdf_filename) {
+    const pdfPath = path.join(process.cwd(), 'data', 'invoices', invoice.pdf_filename);
+    if (fs.existsSync(pdfPath)) {
+      mailOptions.attachments = [{
+        filename: `Invoice-${invoice.number}.pdf`,
+        path: pdfPath,
+      }];
+    }
+  }
+
+  const info = await transport.sendMail(mailOptions);
 
   // Log to email_log
   await pool.query(`
