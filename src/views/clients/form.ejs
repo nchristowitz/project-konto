@@ -1,70 +1,79 @@
 <%- include('../header') %>
-<h1><%= client ? 'Edit Client' : 'New Client' %></h1>
+<h1><%= clientData ? 'Edit Client' : 'New Client' %></h1>
 
 <div class="card">
-  <form method="POST" action="<%= client ? '/clients/' + client.id : '/clients' %>">
+  <form method="POST" action="<%= clientData ? '/clients/' + clientData.id : '/clients' %>">
     <div class="form-grid">
       <div class="form-group full">
         <label for="name">Name</label>
-        <input type="text" id="name" name="name" value="<%= client ? client.name : '' %>" required>
+        <input type="text" id="name" name="name" value="<%= clientData ? clientData.name : '' %>" required>
       </div>
       <div class="form-group">
         <label for="contact_person">Contact person</label>
-        <input type="text" id="contact_person" name="contact_person" value="<%= client ? client.contact_person : '' %>">
+        <input type="text" id="contact_person" name="contact_person" value="<%= clientData ? clientData.contact_person : '' %>">
       </div>
       <div class="form-group">
         <label for="email">Email</label>
-        <input type="email" id="email" name="email" value="<%= client ? client.email : '' %>">
+        <input type="email" id="email" name="email" value="<%= clientData ? clientData.email : '' %>">
       </div>
       <div class="form-group full">
         <label for="address_line1">Address line 1</label>
-        <input type="text" id="address_line1" name="address_line1" value="<%= client ? client.address_line1 : '' %>">
+        <input type="text" id="address_line1" name="address_line1" value="<%= clientData ? clientData.address_line1 : '' %>">
       </div>
       <div class="form-group full">
         <label for="address_line2">Address line 2</label>
-        <input type="text" id="address_line2" name="address_line2" value="<%= client ? client.address_line2 : '' %>">
+        <input type="text" id="address_line2" name="address_line2" value="<%= clientData ? clientData.address_line2 : '' %>">
       </div>
       <div class="form-group">
         <label for="city">City</label>
-        <input type="text" id="city" name="city" value="<%= client ? client.city : '' %>">
+        <input type="text" id="city" name="city" value="<%= clientData ? clientData.city : '' %>">
       </div>
       <div class="form-group">
         <label for="postal_code">Postal code</label>
-        <input type="text" id="postal_code" name="postal_code" value="<%= client ? client.postal_code : '' %>">
+        <input type="text" id="postal_code" name="postal_code" value="<%= clientData ? clientData.postal_code : '' %>">
       </div>
       <div class="form-group">
         <label for="country_code">Country code</label>
-        <input type="text" id="country_code" name="country_code" maxlength="2" value="<%= client ? client.country_code : 'DE' %>">
+        <input type="text" id="country_code" name="country_code" maxlength="2" value="<%= clientData ? clientData.country_code : 'DE' %>">
       </div>
       <div class="form-group">
         <label for="vat_number">VAT number</label>
-        <input type="text" id="vat_number" name="vat_number" value="<%= client ? client.vat_number : '' %>">
+        <input type="text" id="vat_number" name="vat_number" value="<%= clientData ? clientData.vat_number : '' %>">
       </div>
       <div class="form-group">
         <label for="currency">Currency</label>
-        <input type="text" id="currency" name="currency" maxlength="3" value="<%= client ? client.currency : 'EUR' %>">
+        <select id="currency" name="currency">
+          <% const cur = clientData ? clientData.currency : 'EUR'; %>
+          <option value="EUR" <%= cur === 'EUR' ? 'selected' : '' %>>EUR</option>
+          <option value="USD" <%= cur === 'USD' ? 'selected' : '' %>>USD</option>
+          <option value="GBP" <%= cur === 'GBP' ? 'selected' : '' %>>GBP</option>
+          <option value="CHF" <%= cur === 'CHF' ? 'selected' : '' %>>CHF</option>
+          <option value="SEK" <%= cur === 'SEK' ? 'selected' : '' %>>SEK</option>
+          <option value="NOK" <%= cur === 'NOK' ? 'selected' : '' %>>NOK</option>
+          <option value="DKK" <%= cur === 'DKK' ? 'selected' : '' %>>DKK</option>
+          <option value="PLN" <%= cur === 'PLN' ? 'selected' : '' %>>PLN</option>
+          <option value="CZK" <%= cur === 'CZK' ? 'selected' : '' %>>CZK</option>
+          <option value="CAD" <%= cur === 'CAD' ? 'selected' : '' %>>CAD</option>
+          <option value="AUD" <%= cur === 'AUD' ? 'selected' : '' %>>AUD</option>
+          <option value="JPY" <%= cur === 'JPY' ? 'selected' : '' %>>JPY</option>
+        </select>
       </div>
       <div class="form-group">
         <label for="default_vat_rate">Default VAT rate (%)</label>
-        <input type="number" id="default_vat_rate" name="default_vat_rate" step="0.01" value="<%= client ? client.default_vat_rate : '19.00' %>">
+        <input type="number" id="default_vat_rate" name="default_vat_rate" step="0.01" value="<%= clientData ? clientData.default_vat_rate : '19.00' %>">
       </div>
       <div class="form-group">
         <label for="payment_terms_days">Payment terms (days)</label>
-        <input type="number" id="payment_terms_days" name="payment_terms_days" value="<%= client ? client.payment_terms_days : '30' %>">
+        <input type="number" id="payment_terms_days" name="payment_terms_days" value="<%= clientData ? clientData.payment_terms_days : '30' %>">
       </div>
       <div class="form-group full">
         <label for="notes">Notes</label>
-        <textarea id="notes" name="notes" rows="3"><%= client ? client.notes || '' : '' %></textarea>
+        <textarea id="notes" name="notes" rows="3"><%= clientData ? clientData.notes || '' : '' %></textarea>
       </div>
     </div>
     <div class="form-actions">
-      <button type="submit"><%= client ? 'Save changes' : 'Create client' %></button>
-      <a href="/clients" class="btn-secondary">Cancel</a>
-      <% if (client) { %>
-        <form method="POST" action="/clients/<%= client.id %>/archive" class="inline-form">
-          <button type="submit" class="btn-danger" onclick="return confirm('Archive this client?')">Archive</button>
-        </form>
-      <% } %>
+      <button type="submit"><%= clientData ? 'Save changes' : 'Create client' %></button>
+      <a href="<%= clientData ? '/clients/' + clientData.id : '/clients' %>" class="btn-secondary">Cancel</a>
     </div>
   </form>
 </div>

@@ -3,7 +3,8 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db');
-const { getNextInvoiceNumber } = require('../services/invoiceNumber');
+const { getNextInvoiceNumber, decrementIfLast } = require('../services/invoiceNumber');
+const archiver = require('archiver');
 const { sendInvoiceEmail, sendReminderEmail } = require('../services/email');
 const { generateEInvoice } = require('../services/einvoice');
 
@@ -171,6 +172,66 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /invoices/export — batch PDF export
+router.post('/export', async (req, res) => {
+  let ids = req.body.invoice_ids;
+  if (!ids) return res.redirect('/invoices');
+  if (!Array.isArray(ids)) ids = [ids];
+
+  const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (!numericIds.length) return res.redirect('/invoices');
+
+  // Fetch invoices
+  const { rows: invoices } = await pool.query(
+    `SELECT * FROM invoices WHERE id = ANY($1) ORDER BY number`,
+    [numericIds]
+  );
+  if (!invoices.length) return res.redirect('/invoices');
+
+  // Auto-generate PDFs for any that don't have one
+  for (const inv of invoices) {
+    if (!inv.pdf_filename) {
+      try {
+        const result = await generateEInvoice(inv.id);
+        inv.pdf_filename = result.filename;
+      } catch (err) {
+        console.error(`Failed to generate PDF for invoice ${inv.number}:`, err);
+      }
+    }
+  }
+
+  // Filter to invoices that have PDFs
+  const withPdf = invoices.filter(inv => inv.pdf_filename);
+  if (!withPdf.length) return res.redirect('/invoices?error=no_pdfs');
+
+  if (withPdf.length === 1) {
+    // Single invoice — stream PDF directly
+    const inv = withPdf[0];
+    const filePath = path.join(process.cwd(), 'data', 'invoices', inv.pdf_filename);
+    if (!fs.existsSync(filePath)) return res.status(404).send('PDF file not found');
+    return res.download(filePath, `Invoice-${inv.number}.pdf`);
+  }
+
+  // Multiple — create zip
+  const now = new Date();
+  const zipName = `invoices-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}.zip`;
+
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+  const archive = archiver('zip', { zlib: { level: 5 } });
+  archive.pipe(res);
+
+  for (const inv of withPdf) {
+    const filePath = path.join(process.cwd(), 'data', 'invoices', inv.pdf_filename);
+    if (fs.existsSync(filePath)) {
+      archive.file(filePath, { name: `Invoice-${inv.number}.pdf` });
+    }
+  }
+
+  await archive.finalize();
+});
+
 // GET /invoices/:id
 router.get('/:id', async (req, res) => {
   const { rows: invoiceRows } = await pool.query(
@@ -200,7 +261,7 @@ router.get('/:id/edit', async (req, res) => {
   if (!invoiceRows.length) return res.status(404).send('Invoice not found');
 
   const invoice = invoiceRows[0];
-  if (invoice.status !== 'draft') {
+  if (['cancelled', 'paid'].includes(invoice.status)) {
     return res.redirect(`/invoices/${invoice.id}`);
   }
 
@@ -234,7 +295,7 @@ router.post('/:id', async (req, res) => {
       'SELECT * FROM invoices WHERE id = $1', [req.params.id]
     );
     if (!existing.length) throw new Error('Invoice not found');
-    if (existing[0].status !== 'draft') throw new Error('Only drafts can be edited');
+    if (['cancelled', 'paid'].includes(existing[0].status)) throw new Error('Cancelled and paid invoices cannot be edited');
 
     const {
       client_id, currency, issue_date, due_date,
@@ -535,6 +596,34 @@ router.post('/:id/payments/:pid/delete', async (req, res) => {
   );
 
   res.redirect(`/invoices/${invoiceId}`);
+});
+
+// POST /invoices/:id/delete — hard delete a draft invoice
+router.post('/:id/delete', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).send('Invoice not found');
+  const invoice = rows[0];
+
+  if (invoice.status !== 'draft') {
+    return res.status(400).send('Only draft invoices can be deleted');
+  }
+
+  // Delete PDF from disk if exists
+  if (invoice.pdf_filename) {
+    const filePath = path.join(process.cwd(), 'data', 'invoices', invoice.pdf_filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+
+  // Try to decrement sequence if this was the last number
+  const yearPrefix = invoice.number.slice(0, 2);
+  const num = parseInt(invoice.number.slice(2), 10);
+  const fullYear = 2000 + parseInt(yearPrefix, 10);
+  await decrementIfLast('INV', fullYear, num);
+
+  // Delete invoice (lines cascade)
+  await pool.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
+
+  res.redirect('/invoices');
 });
 
 module.exports = router;

@@ -25,9 +25,10 @@ router.get('/', async (req, res) => {
     LIMIT 10
   `);
 
-  // This month stats
-  const { rows: monthStats } = await pool.query(`
+  // This month stats grouped by currency
+  const { rows: monthRows } = await pool.query(`
     SELECT
+      currency,
       COALESCE(SUM(total), 0) AS invoiced,
       COALESCE(SUM(amount_paid), 0) AS received,
       COALESCE(SUM(total - amount_paid) FILTER (WHERE status NOT IN ('cancelled', 'paid')), 0) AS pending
@@ -35,24 +36,38 @@ router.get('/', async (req, res) => {
     WHERE EXTRACT(YEAR FROM issue_date) = $1
       AND EXTRACT(MONTH FROM issue_date) = $2
       AND status != 'cancelled'
+    GROUP BY currency
+    ORDER BY currency
   `, [year, month]);
 
-  // This year stats
-  const { rows: yearStats } = await pool.query(`
+  // This year stats grouped by currency
+  const { rows: yearRows } = await pool.query(`
     SELECT
+      currency,
       COALESCE(SUM(total), 0) AS invoiced,
       COALESCE(SUM(amount_paid), 0) AS received,
       COALESCE(SUM(total - amount_paid) FILTER (WHERE status NOT IN ('cancelled', 'paid')), 0) AS pending
     FROM invoices
     WHERE EXTRACT(YEAR FROM issue_date) = $1
       AND status != 'cancelled'
+    GROUP BY currency
+    ORDER BY currency
   `, [year]);
+
+  // Accepted estimates awaiting conversion
+  const { rows: acceptedEstimates } = await pool.query(`
+    SELECT e.*, c.name AS client_name
+    FROM estimates e JOIN clients c ON e.client_id = c.id
+    WHERE e.status = 'accepted'
+    ORDER BY e.accepted_at DESC
+  `);
 
   res.render('dashboard', {
     overdue,
     recent,
-    monthStats: monthStats[0],
-    yearStats: yearStats[0],
+    monthStats: monthRows,
+    yearStats: yearRows,
+    acceptedEstimates,
   });
 });
 

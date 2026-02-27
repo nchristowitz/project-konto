@@ -4,32 +4,66 @@
   <a href="/clients/new" class="btn">New client</a>
 </div>
 
+<div class="filters">
+  <a href="/clients" class="filter-tag <%= !showArchived ? 'active' : '' %>">Active</a>
+  <a href="/clients?archived=1" class="filter-tag <%= showArchived ? 'active' : '' %>">Archived</a>
+</div>
+
 <% if (clients.length === 0) { %>
-  <p class="empty">No clients yet.</p>
+  <p class="empty"><%= showArchived ? 'No archived clients.' : 'No clients yet.' %></p>
 <% } else { %>
+  <form method="POST" id="client-batch-form">
   <div class="card">
+    <div class="export-bar">
+      <% if (showArchived) { %>
+        <button type="submit" formaction="/clients/batch-unarchive" class="btn-secondary btn-small" id="unarchive-btn" disabled>Restore selected</button>
+        <button type="submit" formaction="/clients/batch-delete" class="btn-danger btn-small" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
+        <input type="hidden" name="return_archived" value="1">
+      <% } else { %>
+        <button type="submit" formaction="/clients/batch-archive" class="btn-secondary btn-small" id="archive-btn" disabled>Archive selected</button>
+        <button type="submit" formaction="/clients/batch-delete" class="btn-danger btn-small" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
+      <% } %>
+    </div>
     <table>
       <thead>
         <tr>
+          <th style="width:32px"><input type="checkbox" id="select-all"></th>
           <th>Name</th>
-          <th>Contact</th>
           <th>Email</th>
-          <th>Currency</th>
-          <th>VAT</th>
+          <th class="text-right">Revenue</th>
+          <th class="text-right">Outstanding</th>
         </tr>
       </thead>
       <tbody>
         <% for (const client of clients) { %>
           <tr>
+            <td><input type="checkbox" name="client_ids" value="<%= client.id %>" class="client-check"></td>
             <td><a href="/clients/<%= client.id %>"><%= client.name %></a></td>
-            <td><%= client.contact_person || '' %></td>
             <td><%= client.email || '' %></td>
-            <td><%= client.currency %></td>
-            <td><%= client.default_vat_rate %>%</td>
+            <td class="text-right mono"><% if (Number(client.revenue) > 0) { %><%= Number(client.revenue).toFixed(2) %> <%= client.currency %><% } else { %>—<% } %></td>
+            <td class="text-right mono"><% if (Number(client.outstanding) > 0) { %><%= Number(client.outstanding).toFixed(2) %> <%= client.currency %><% } else { %>—<% } %></td>
           </tr>
         <% } %>
       </tbody>
     </table>
   </div>
+  </form>
+  <script>
+    (function() {
+      var all = document.getElementById('select-all');
+      var checks = document.querySelectorAll('.client-check');
+      var btns = document.querySelectorAll('#archive-btn, #unarchive-btn, #delete-btn');
+      function update() {
+        var any = Array.from(checks).some(function(c) { return c.checked; });
+        btns.forEach(function(b) { if (b) b.disabled = !any; });
+        all.checked = Array.from(checks).every(function(c) { return c.checked; });
+      }
+      all.addEventListener('change', function() {
+        checks.forEach(function(c) { c.checked = all.checked; });
+        update();
+      });
+      checks.forEach(function(c) { c.addEventListener('change', update); });
+    })();
+  </script>
 <% } %>
 <%- include('../footer') %>

@@ -17,31 +17,55 @@
 <% if (invoices.length === 0) { %>
   <p class="empty">No invoices yet.</p>
 <% } else { %>
+  <form method="POST" action="/invoices/export" id="export-form">
   <div class="card">
+    <div class="export-bar">
+      <button type="submit" class="btn-secondary btn-small" id="export-btn" disabled>Export selected</button>
+    </div>
     <table>
       <thead>
         <tr>
+          <th style="width:32px"><input type="checkbox" id="select-all"></th>
           <th>Number</th>
           <th>Client</th>
           <th>Date</th>
           <th>Due</th>
           <th class="text-right">Total</th>
-          <th>Status</th>
+          <th class="text-right">Status</th>
         </tr>
       </thead>
       <tbody>
         <% for (const inv of invoices) { %>
           <tr>
+            <td><input type="checkbox" name="invoice_ids" value="<%= inv.id %>" class="inv-check"></td>
             <td><a href="/invoices/<%= inv.id %>" class="mono"><%= inv.number %></a></td>
             <td><%= inv.client_name %></td>
             <td><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-            <td class="text-right mono"><%= inv.currency %> <%= Number(inv.total).toFixed(2) %></td>
-            <td><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+            <td class="text-right mono"><%= Number(inv.total).toFixed(2) %> <%= inv.currency %></td>
+            <td class="text-right"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
           </tr>
         <% } %>
       </tbody>
     </table>
   </div>
+  </form>
+  <script>
+    (function() {
+      var all = document.getElementById('select-all');
+      var checks = document.querySelectorAll('.inv-check');
+      var btn = document.getElementById('export-btn');
+      function update() {
+        var any = Array.from(checks).some(function(c) { return c.checked; });
+        btn.disabled = !any;
+        all.checked = Array.from(checks).every(function(c) { return c.checked; });
+      }
+      all.addEventListener('change', function() {
+        checks.forEach(function(c) { c.checked = all.checked; });
+        update();
+      });
+      checks.forEach(function(c) { c.addEventListener('change', update); });
+    })();
+  </script>
 <% } %>
 <%- include('../footer') %>

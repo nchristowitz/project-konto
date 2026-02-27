@@ -195,7 +195,10 @@ async function generateEInvoice(invoiceId) {
   const client = invoice.client_snapshot || {};
 
   // 2. Generate visual PDF
-  const pdfBytes = await generateInvoicePdf({ invoice, lines: lineRows, profile, client });
+  let statusWatermark = null;
+  if (invoice.status === 'paid') statusWatermark = 'PAID';
+  else if (invoice.status === 'cancelled') statusWatermark = 'CANCELLED';
+  const pdfBytes = await generateInvoicePdf({ invoice, lines: lineRows, profile, client, statusWatermark });
 
   // 3. Build UBL invoice data
   const ublData = buildUblInvoice({ invoice, lines: lineRows, profile, client });

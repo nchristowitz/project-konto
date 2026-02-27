@@ -126,4 +126,91 @@ ${config.senderName || 'Konto'}`,
   return { previewUrl };
 }
 
-module.exports = { sendInvoiceEmail, sendReminderEmail };
+async function sendEstimateEmail(estimate) {
+  const transport = await getTransporter();
+  const clientEmail = estimate.client_snapshot?.email;
+  if (!clientEmail) throw new Error('Client has no email address');
+
+  const contactName = estimate.client_snapshot?.contact_person || estimate.client_snapshot?.name || 'there';
+  const link = `${config.baseUrl}/e/${estimate.view_token}`;
+
+  const mailOptions = {
+    from: config.emailFrom || '"Konto" <noreply@localhost>',
+    to: clientEmail,
+    subject: `Estimate ${estimate.number} from ${config.senderName || 'Konto'}`,
+    text: `Hi ${contactName},
+
+Please find estimate ${estimate.number} for ${estimate.currency} ${Number(estimate.total).toFixed(2)}.
+
+View and accept online: ${link}
+${estimate.valid_until ? `Valid until: ${new Date(estimate.valid_until).toISOString().slice(0, 10)}` : ''}
+
+Best regards,
+${config.senderName || 'Konto'}`,
+  };
+
+  if (estimate.pdf_filename) {
+    const pdfPath = path.join(process.cwd(), 'data', 'estimates', estimate.pdf_filename);
+    if (fs.existsSync(pdfPath)) {
+      mailOptions.attachments = [{
+        filename: `Estimate-${estimate.number}.pdf`,
+        path: pdfPath,
+      }];
+    }
+  }
+
+  const info = await transport.sendMail(mailOptions);
+
+  await pool.query(`
+    INSERT INTO email_log (estimate_id, type, recipient, subject, status)
+    VALUES ($1, 'estimate_sent', $2, $3, 'sent')
+  `, [estimate.id, clientEmail, `Estimate ${estimate.number}`]);
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    console.log(`[email] Estimate preview: ${previewUrl}`);
+  }
+
+  return { previewUrl };
+}
+
+async function sendEstimateAcceptedNotification(estimate) {
+  const transport = await getTransporter();
+
+  const { rows: profileRows } = await pool.query('SELECT email FROM business_profile WHERE id = 1');
+  const adminEmail = profileRows[0]?.email || config.emailFrom;
+  if (!adminEmail) {
+    console.log('[email] No admin email configured, skipping acceptance notification');
+    return {};
+  }
+
+  const clientName = estimate.client_snapshot?.name || 'Unknown client';
+  const link = `${config.baseUrl}/estimates/${estimate.id}`;
+
+  const info = await transport.sendMail({
+    from: config.emailFrom || '"Konto" <noreply@localhost>',
+    to: adminEmail,
+    subject: `Estimate ${estimate.number} accepted by ${clientName}`,
+    text: `Estimate ${estimate.number} for ${estimate.currency} ${Number(estimate.total).toFixed(2)} has been accepted by ${clientName}.
+
+Accepted at: ${new Date().toISOString().slice(0, 19).replace('T', ' ')}
+
+View estimate and convert to invoice: ${link}
+
+This is an automated notification from Konto.`,
+  });
+
+  await pool.query(`
+    INSERT INTO email_log (estimate_id, type, recipient, subject, status)
+    VALUES ($1, 'estimate_accepted', $2, $3, 'sent')
+  `, [estimate.id, adminEmail, `Estimate ${estimate.number} accepted`]);
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+  if (previewUrl) {
+    console.log(`[email] Acceptance notification preview: ${previewUrl}`);
+  }
+
+  return { previewUrl };
+}
+
+module.exports = { sendInvoiceEmail, sendReminderEmail, sendEstimateEmail, sendEstimateAcceptedNotification };

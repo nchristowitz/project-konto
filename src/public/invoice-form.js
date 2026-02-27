@@ -30,7 +30,7 @@ const lineTemplate = `
     <button type="button" class="remove-line" title="Remove">&times;</button>
   </div>
   <div class="form-group line-detail">
-    <input type="text" name="details" placeholder="Detail (optional)">
+    <textarea name="details" rows="2" placeholder="Detail (optional)"></textarea>
   </div>
 </div>`;
 

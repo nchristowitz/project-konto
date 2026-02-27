@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estimate <%= estimate.number %></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="public-invoice-page">
+  <div class="invoice-toolbar">
+    <span>Estimate <%= estimate.number %></span>
+    <% if (estimate.pdf_filename) { %>
+      <a href="/e/<%= estimate.view_token %>/pdf">Download PDF</a>
+    <% } %>
+  </div>
+  <div class="invoice-document">
+    <div class="inv-header">
+      <div class="inv-from">
+        <% if (profile.name) { %>
+          <strong><%= profile.name %></strong><br>
+        <% } %>
+        <% if (profile.address_line1) { %><%= profile.address_line1 %><br><% } %>
+        <% if (profile.address_line2) { %><%= profile.address_line2 %><br><% } %>
+        <% if (profile.city || profile.postal_code) { %>
+          <%= profile.postal_code %> <%= profile.city %><% if (profile.country_code) { %>, <%= profile.country_code %><% } %><br>
+        <% } %>
+        <% if (profile.vat_number) { %>VAT: <%= profile.vat_number %><br><% } %>
+        <% if (profile.email) { %><%= profile.email %><br><% } %>
+      </div>
+    </div>
+
+    <div class="inv-title">ESTIMATE <%= estimate.number %></div>
+
+    <div class="inv-parties">
+      <div class="inv-to">
+        <div class="inv-label">Prepared for:</div>
+        <strong><%= clientData.name %></strong><br>
+        <% if (clientData.contact_person) { %><%= clientData.contact_person %><br><% } %>
+        <% if (clientData.address_line1) { %><%= clientData.address_line1 %><br><% } %>
+        <% if (clientData.address_line2) { %><%= clientData.address_line2 %><br><% } %>
+        <% if (clientData.city || clientData.postal_code) { %>
+          <%= clientData.postal_code %> <%= clientData.city %><% if (clientData.country_code) { %>, <%= clientData.country_code %><% } %><br>
+        <% } %>
+        <% if (clientData.vat_number) { %>VAT: <%= clientData.vat_number %><br><% } %>
+      </div>
+      <div class="inv-dates">
+        <div class="inv-date-row"><span>Date:</span><span><%= estimate.issue_date ? new Date(estimate.issue_date).toISOString().slice(0,10) : '' %></span></div>
+        <% if (estimate.valid_until) { %>
+          <div class="inv-date-row"><span>Valid until:</span><span><%= new Date(estimate.valid_until).toISOString().slice(0,10) %></span></div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="inv-line-header">
+      <span class="inv-col-desc">Description</span>
+      <span class="inv-col-qty">Qty</span>
+      <span class="inv-col-amount">Amount</span>
+    </div>
+    <div class="inv-separator"></div>
+
+    <% for (const line of lines) { %>
+      <div class="inv-line">
+        <div class="inv-line-main">
+          <span class="inv-col-desc"><%= line.description %></span>
+          <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
+          <span class="inv-col-amount"><%= Number(line.line_total).toFixed(2) %></span>
+        </div>
+        <% if (line.detail) { %>
+          <div class="inv-line-detail"><%= line.detail %></div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <div class="inv-separator"></div>
+
+    <div class="inv-totals">
+      <div class="inv-total-row">
+        <span>Subtotal</span>
+        <span><%= Number(estimate.subtotal).toFixed(2) %></span>
+      </div>
+      <div class="inv-total-row">
+        <span><%= estimate.vat_label %> <%= Number(estimate.vat_rate) %>%</span>
+        <span><%= Number(estimate.vat_amount).toFixed(2) %></span>
+      </div>
+      <% if (estimate.vat_note) { %>
+        <div class="inv-vat-note"><%= estimate.vat_note %></div>
+      <% } %>
+      <div class="inv-separator-short"></div>
+      <div class="inv-total-row inv-grand-total">
+        <span>Total</span>
+        <span><%= Number(estimate.total).toFixed(2) %> <%= estimate.currency %></span>
+      </div>
+    </div>
+
+    <% if (estimate.notes) { %>
+      <div class="inv-section">
+        <p><%= estimate.notes %></p>
+      </div>
+    <% } %>
+
+    <% if (estimate.footer_text) { %>
+      <div class="inv-footer"><%= estimate.footer_text %></div>
+    <% } %>
+  </div>
+
+  <%# Acceptance section — outside the document for visual separation %>
+  <div style="max-width: 800px; margin: 0 auto 40px; padding: 0 24px;">
+    <% if (query.accepted === '1') { %>
+      <div class="estimate-status-banner accepted">
+        Estimate accepted. Thank you!
+      </div>
+    <% } else if (query.error === 'expired') { %>
+      <div class="estimate-status-banner expired">
+        This estimate has expired and can no longer be accepted.
+      </div>
+    <% } else if (query.error === 'already_processed') { %>
+      <div class="estimate-status-banner expired">
+        This estimate has already been processed.
+      </div>
+    <% } else if (['sent', 'viewed'].includes(estimate.status)) { %>
+      <div class="estimate-acceptance">
+        <% if (estimate.terms_text) { %>
+          <div class="terms-text"><%= estimate.terms_text %></div>
+        <% } %>
+        <form method="POST" action="/e/<%= estimate.view_token %>/accept" id="accept-form">
+          <% if (estimate.terms_text) { %>
+            <div style="margin-bottom: 16px;">
+              <label class="checkbox-label" style="justify-content: center; font-family: var(--font); font-size: 13px;">
+                <input type="checkbox" id="accept-terms" required>
+                I have read and accept the terms and conditions
+              </label>
+            </div>
+          <% } %>
+          <button type="submit" class="accept-btn" id="accept-btn">Accept Estimate</button>
+        </form>
+      </div>
+    <% } else if (estimate.status === 'accepted') { %>
+      <div class="estimate-status-banner accepted">
+        Estimate accepted on <%= estimate.accepted_at ? new Date(estimate.accepted_at).toISOString().slice(0, 10) : '' %>.
+      </div>
+    <% } else if (estimate.status === 'rejected') { %>
+      <div class="estimate-status-banner rejected">
+        This estimate has been declined.
+      </div>
+    <% } else if (estimate.status === 'expired') { %>
+      <div class="estimate-status-banner expired">
+        This estimate has expired.
+      </div>
+    <% } else if (estimate.status === 'converted') { %>
+      <div class="estimate-status-banner accepted">
+        This estimate has been accepted and converted to an invoice.
+      </div>
+    <% } %>
+  </div>
+
+  <% if (!['expired', 'rejected', 'converted'].includes(estimate.status)) { %>
+  <script>
+    setTimeout(function() {
+      fetch('/api/views/estimate/<%= estimate.view_token %>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }, 2000);
+  </script>
+  <% } %>
+
+  <% if (estimate.terms_text && ['sent', 'viewed'].includes(estimate.status)) { %>
+  <script>
+    var cb = document.getElementById('accept-terms');
+    var btn = document.getElementById('accept-btn');
+    if (cb && btn) {
+      btn.disabled = true;
+      cb.addEventListener('change', function() {
+        btn.disabled = !cb.checked;
+      });
+    }
+  </script>
+  <% } %>
+</body>
+</html>

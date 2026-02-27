@@ -26,7 +26,7 @@
 <div class="page-header">
   <h1>Invoice <%= invoice.number %></h1>
   <div class="header-actions">
-    <% if (invoice.status === 'draft') { %>
+    <% if (!['cancelled', 'paid'].includes(invoice.status)) { %>
       <a href="/invoices/<%= invoice.id %>/edit" class="btn">Edit</a>
     <% } %>
     <% if (invoice.status !== 'draft') { %>
@@ -87,7 +87,7 @@
             <% } %>
           </td>
           <td class="text-right mono"><%= Number(line.quantity) %></td>
-          <td><%= line.unit_code %></td>
+          <td><%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></td>
           <td class="text-right mono"><%= Number(line.unit_price).toFixed(2) %></td>
           <td class="text-right mono"><%= Number(line.line_total).toFixed(2) %></td>
         </tr>
@@ -98,10 +98,10 @@
   <div class="invoice-summary">
     <div class="summary-row"><span>Subtotal</span><span class="mono"><%= Number(invoice.subtotal).toFixed(2) %></span></div>
     <div class="summary-row"><span><%= invoice.vat_label %> <%= Number(invoice.vat_rate) %>%</span><span class="mono"><%= Number(invoice.vat_amount).toFixed(2) %></span></div>
-    <div class="summary-row total"><span>Total</span><span class="mono"><%= invoice.currency %> <%= Number(invoice.total).toFixed(2) %></span></div>
+    <div class="summary-row total"><span>Total</span><span class="mono"><%= Number(invoice.total).toFixed(2) %> <%= invoice.currency %></span></div>
     <% if (Number(invoice.amount_paid) > 0) { %>
       <div class="summary-row"><span>Paid</span><span class="mono"><%= Number(invoice.amount_paid).toFixed(2) %></span></div>
-      <div class="summary-row total"><span>Balance</span><span class="mono"><%= invoice.currency %> <%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %></span></div>
+      <div class="summary-row total"><span>Balance</span><span class="mono"><%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %> <%= invoice.currency %></span></div>
     <% } %>
   </div>
 </div>
@@ -202,6 +202,11 @@
         <button type="submit" class="btn-secondary">Mark as sent (no email)</button>
       </form>
     <% } %>
+    <% if (['sent', 'viewed', 'overdue', 'partially_paid'].includes(invoice.status)) { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/send" class="inline-form">
+        <button type="submit" class="btn-secondary">Resend to client</button>
+      </form>
+    <% } %>
     <% if (['sent', 'viewed', 'overdue'].includes(invoice.status)) { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/remind" class="inline-form">
         <button type="submit">Send reminder</button>
@@ -215,6 +220,11 @@
       <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="cancelled">
         <button type="submit" class="btn-danger" onclick="return confirm('Cancel this invoice?')">Cancel invoice</button>
+      </form>
+    <% } %>
+    <% if (invoice.status === 'draft') { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/delete" class="inline-form">
+        <button type="submit" class="btn-danger" onclick="return confirm('Permanently delete this draft invoice? This cannot be undone.')">Delete draft</button>
       </form>
     <% } %>
   </div>

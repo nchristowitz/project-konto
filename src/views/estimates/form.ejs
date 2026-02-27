@@ -1,8 +1,8 @@
 <%- include('../header') %>
-<h1><%= invoice ? 'Edit Invoice ' + invoice.number : 'New Invoice' %></h1>
+<h1><%= estimate ? 'Edit Estimate ' + estimate.number : 'New Estimate' %></h1>
 
 <div class="card">
-  <form method="POST" action="<%= invoice ? '/invoices/' + invoice.id : '/invoices' %>" id="invoice-form">
+  <form method="POST" action="<%= estimate ? '/estimates/' + estimate.id : '/estimates' %>" id="invoice-form">
     <div class="form-grid">
       <div class="form-group">
         <label for="client_id">Client</label>
@@ -13,14 +13,14 @@
               data-currency="<%= c.currency %>"
               data-vat="<%= c.default_vat_rate %>"
               data-terms="<%= c.payment_terms_days %>"
-              <%= (invoice && invoice.client_id === c.id) || (selectedClient && selectedClient.id === c.id) ? 'selected' : '' %>
+              <%= (estimate && estimate.client_id === c.id) || (selectedClient && selectedClient.id === c.id) ? 'selected' : '' %>
             ><%= c.name %></option>
           <% } %>
         </select>
       </div>
       <div class="form-group">
         <label for="currency">Currency</label>
-        <% const cur = invoice ? invoice.currency : (selectedClient ? selectedClient.currency : settings.default_currency || 'EUR'); %>
+        <% const cur = estimate ? estimate.currency : (selectedClient ? selectedClient.currency : settings.default_currency || 'EUR'); %>
         <select id="currency" name="currency">
           <option value="EUR" <%= cur === 'EUR' ? 'selected' : '' %>>EUR</option>
           <option value="USD" <%= cur === 'USD' ? 'selected' : '' %>>USD</option>
@@ -38,30 +38,30 @@
       </div>
       <div class="form-group">
         <label for="issue_date">Issue date</label>
-        <input type="date" id="issue_date" name="issue_date" value="<%= invoice ? new Date(invoice.issue_date).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>" required>
+        <input type="date" id="issue_date" name="issue_date" value="<%= estimate ? new Date(estimate.issue_date).toISOString().slice(0,10) : new Date().toISOString().slice(0,10) %>" required>
       </div>
       <div class="form-group">
-        <label for="due_date">Due date</label>
-        <input type="date" id="due_date" name="due_date" value="<%= invoice && invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0,10) : '' %>">
+        <label for="valid_until">Valid until</label>
+        <input type="date" id="due_date" name="valid_until" value="<%= estimate && estimate.valid_until ? new Date(estimate.valid_until).toISOString().slice(0,10) : '' %>">
       </div>
       <div class="form-group">
         <label for="vat_rate">VAT rate (%)</label>
-        <input type="number" id="vat_rate" name="vat_rate" step="0.01" value="<%= invoice ? invoice.vat_rate : (selectedClient ? selectedClient.default_vat_rate : settings.default_vat_rate) %>">
+        <input type="number" id="vat_rate" name="vat_rate" step="0.01" value="<%= estimate ? estimate.vat_rate : (selectedClient ? selectedClient.default_vat_rate : settings.default_vat_rate) %>">
       </div>
       <div class="form-group">
         <label for="vat_label">VAT label</label>
-        <input type="text" id="vat_label" name="vat_label" value="<%= invoice ? invoice.vat_label : 'VAT' %>">
+        <input type="text" id="vat_label" name="vat_label" value="<%= estimate ? estimate.vat_label : 'VAT' %>">
       </div>
       <div class="form-group">
         <label>&nbsp;</label>
         <label class="checkbox-label">
-          <input type="checkbox" name="reverse_charge" id="reverse_charge" <%= invoice && invoice.reverse_charge ? 'checked' : '' %>>
+          <input type="checkbox" name="reverse_charge" id="reverse_charge" <%= estimate && estimate.reverse_charge ? 'checked' : '' %>>
           Reverse charge
         </label>
       </div>
       <div class="form-group">
         <label for="vat_note">VAT note</label>
-        <input type="text" id="vat_note" name="vat_note" value="<%= invoice ? invoice.vat_note || '' : '' %>">
+        <input type="text" id="vat_note" name="vat_note" value="<%= estimate ? estimate.vat_note || '' : '' %>">
       </div>
     </div>
 
@@ -107,21 +107,21 @@
     </div>
     <button type="button" id="add-line" class="btn-secondary">+ Add item</button>
 
-    <h2>Payment Details</h2>
+    <h2>Terms & Conditions</h2>
     <div class="form-grid">
       <div class="form-group full">
-        <textarea name="payment_details" rows="4"><%= invoice ? invoice.payment_details || '' : settings.default_payment_details || '' %></textarea>
+        <textarea name="terms_text" rows="4" placeholder="Terms that the client must accept"><%= estimate ? estimate.terms_text || '' : '' %></textarea>
       </div>
     </div>
 
     <h2>Notes</h2>
     <div class="form-grid">
       <div class="form-group full">
-        <textarea name="notes" rows="3" placeholder="Shown on invoice"><%= invoice ? invoice.notes || '' : settings.default_notes || '' %></textarea>
+        <textarea name="notes" rows="3" placeholder="Shown on estimate"><%= estimate ? estimate.notes || '' : '' %></textarea>
       </div>
       <div class="form-group full">
         <label for="internal_notes">Internal notes (not shown to client)</label>
-        <textarea id="internal_notes" name="internal_notes" rows="2"><%= invoice ? invoice.internal_notes || '' : '' %></textarea>
+        <textarea id="internal_notes" name="internal_notes" rows="2"><%= estimate ? estimate.internal_notes || '' : '' %></textarea>
       </div>
     </div>
 
@@ -133,7 +133,7 @@
 
     <div class="form-actions">
       <button type="submit">Save draft</button>
-      <a href="/invoices" class="btn-secondary">Cancel</a>
+      <a href="/estimates" class="btn-secondary">Cancel</a>
     </div>
   </form>
 </div>

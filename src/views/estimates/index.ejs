@@ -1,0 +1,46 @@
+<%- include('../header') %>
+<div class="page-header">
+  <h1>Estimates</h1>
+  <a href="/estimates/new" class="btn">New estimate</a>
+</div>
+
+<div class="filters">
+  <a href="/estimates" class="filter-tag <%= !filters.status ? 'active' : '' %>">All</a>
+  <a href="/estimates?status=draft" class="filter-tag <%= filters.status === 'draft' ? 'active' : '' %>">Draft</a>
+  <a href="/estimates?status=sent" class="filter-tag <%= filters.status === 'sent' ? 'active' : '' %>">Sent</a>
+  <a href="/estimates?status=viewed" class="filter-tag <%= filters.status === 'viewed' ? 'active' : '' %>">Viewed</a>
+  <a href="/estimates?status=accepted" class="filter-tag <%= filters.status === 'accepted' ? 'active' : '' %>">Accepted</a>
+  <a href="/estimates?status=converted" class="filter-tag <%= filters.status === 'converted' ? 'active' : '' %>">Converted</a>
+</div>
+
+<% if (estimates.length === 0) { %>
+  <p class="empty">No estimates yet.</p>
+<% } else { %>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th>Valid until</th>
+          <th class="text-right">Total</th>
+          <th class="text-right">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const est of estimates) { %>
+          <tr>
+            <td><a href="/estimates/<%= est.id %>" class="mono"><%= est.number %></a></td>
+            <td><%= est.client_name %></td>
+            <td><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
+            <td><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
+            <td class="text-right mono"><%= Number(est.total).toFixed(2) %> <%= est.currency %></td>
+            <td class="text-right"><span class="status status-<%= est.status %>"><%= est.status %></span></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('../footer') %>

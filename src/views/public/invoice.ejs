@@ -14,6 +14,9 @@
     <% } %>
   </div>
   <div class="invoice-document">
+    <% if (invoice.status === 'paid' || invoice.status === 'cancelled') { %>
+      <div class="inv-watermark inv-watermark-<%= invoice.status %>"><%= invoice.status %></div>
+    <% } %>
     <div class="inv-header">
       <div class="inv-from">
         <% if (profile.name) { %>
@@ -34,14 +37,14 @@
     <div class="inv-parties">
       <div class="inv-to">
         <div class="inv-label">Bill to:</div>
-        <strong><%= client.name %></strong><br>
-        <% if (client.contact_person) { %><%= client.contact_person %><br><% } %>
-        <% if (client.address_line1) { %><%= client.address_line1 %><br><% } %>
-        <% if (client.address_line2) { %><%= client.address_line2 %><br><% } %>
-        <% if (client.city || client.postal_code) { %>
-          <%= client.postal_code %> <%= client.city %><% if (client.country_code) { %>, <%= client.country_code %><% } %><br>
+        <strong><%= clientData.name %></strong><br>
+        <% if (clientData.contact_person) { %><%= clientData.contact_person %><br><% } %>
+        <% if (clientData.address_line1) { %><%= clientData.address_line1 %><br><% } %>
+        <% if (clientData.address_line2) { %><%= clientData.address_line2 %><br><% } %>
+        <% if (clientData.city || clientData.postal_code) { %>
+          <%= clientData.postal_code %> <%= clientData.city %><% if (clientData.country_code) { %>, <%= clientData.country_code %><% } %><br>
         <% } %>
-        <% if (client.vat_number) { %>VAT: <%= client.vat_number %><br><% } %>
+        <% if (clientData.vat_number) { %>VAT: <%= clientData.vat_number %><br><% } %>
       </div>
       <div class="inv-dates">
         <div class="inv-date-row"><span>Date:</span><span><%= invoice.issue_date ? new Date(invoice.issue_date).toISOString().slice(0,10) : '' %></span></div>
@@ -62,7 +65,7 @@
       <div class="inv-line">
         <div class="inv-line-main">
           <span class="inv-col-desc"><%= line.description %></span>
-          <span class="inv-col-qty"><%= Number(line.quantity) %> <%= line.unit_code.toLowerCase() %></span>
+          <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
           <span class="inv-col-amount"><%= Number(line.line_total).toFixed(2) %></span>
         </div>
         <% if (line.detail) { %>
@@ -87,8 +90,8 @@
       <% } %>
       <div class="inv-separator-short"></div>
       <div class="inv-total-row inv-grand-total">
-        <span>Total <%= invoice.currency %></span>
-        <span><%= Number(invoice.total).toFixed(2) %></span>
+        <span>Total</span>
+        <span><%= Number(invoice.total).toFixed(2) %> <%= invoice.currency %></span>
       </div>
       <% if (Number(invoice.amount_paid) > 0) { %>
         <div class="inv-total-row">
@@ -96,8 +99,8 @@
           <span><%= Number(invoice.amount_paid).toFixed(2) %></span>
         </div>
         <div class="inv-total-row inv-grand-total">
-          <span>Balance <%= invoice.currency %></span>
-          <span><%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %></span>
+          <span>Balance</span>
+          <span><%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %> <%= invoice.currency %></span>
         </div>
       <% } %>
     </div>

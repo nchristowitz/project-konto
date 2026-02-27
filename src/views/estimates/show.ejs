@@ -1,0 +1,174 @@
+<%- include('../header') %>
+<% if (query.sent) { %>
+  <div class="notice notice-success">
+    Estimate sent.
+    <% if (query.preview) { %><a href="<%= query.preview %>" target="_blank">View email preview</a><% } %>
+  </div>
+<% } %>
+<% if (query.error === 'send_failed') { %>
+  <div class="notice notice-error">Failed to send email. Check that the client has an email address.</div>
+<% } %>
+<% if (query.pdf_generated) { %>
+  <div class="notice notice-success">PDF generated.</div>
+<% } %>
+<% if (query.error === 'pdf_failed') { %>
+  <div class="notice notice-error">Failed to generate PDF.</div>
+<% } %>
+<% if (estimate.status === 'converted' && estimate.converted_invoice_id) { %>
+  <div class="notice notice-success">
+    This estimate has been converted.
+    <a href="/invoices/<%= estimate.converted_invoice_id %>">View invoice</a>
+  </div>
+<% } %>
+<div class="page-header">
+  <h1>Estimate <%= estimate.number %></h1>
+  <div class="header-actions">
+    <% if (['draft', 'sent'].includes(estimate.status)) { %>
+      <a href="/estimates/<%= estimate.id %>/edit" class="btn">Edit</a>
+    <% } %>
+    <% if (estimate.pdf_filename) { %>
+      <a href="/estimates/<%= estimate.id %>/pdf" class="btn-secondary">Download PDF</a>
+    <% } %>
+    <form method="POST" action="/estimates/<%= estimate.id %>/pdf" class="inline-form">
+      <button type="submit" class="btn-secondary"><%= estimate.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
+    </form>
+    <% if (estimate.status !== 'draft') { %>
+      <a href="/e/<%= estimate.view_token %>" class="btn-secondary" target="_blank">Public link</a>
+    <% } %>
+  </div>
+</div>
+
+<div class="invoice-meta">
+  <div class="meta-row">
+    <span class="meta-label">Status</span>
+    <span class="status status-<%= estimate.status %>"><%= estimate.status %></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Client</span>
+    <span><a href="/clients/<%= estimate.client_id %>"><%= estimate.client_name %></a></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Issue date</span>
+    <span><%= estimate.issue_date ? new Date(estimate.issue_date).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Valid until</span>
+    <span><%= estimate.valid_until ? new Date(estimate.valid_until).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <% if (estimate.view_count > 0) { %>
+  <div class="meta-row">
+    <span class="meta-label">Views</span>
+    <span><%= estimate.view_count %> (first: <%= estimate.first_viewed_at ? new Date(estimate.first_viewed_at).toISOString().slice(0, 16).replace('T', ' ') : '' %>)</span>
+  </div>
+  <% } %>
+  <% if (estimate.accepted_at) { %>
+  <div class="meta-row">
+    <span class="meta-label">Accepted</span>
+    <span><%= new Date(estimate.accepted_at).toISOString().slice(0, 16).replace('T', ' ') %></span>
+  </div>
+  <% if (estimate.accepted_ip) { %>
+  <div class="meta-row">
+    <span class="meta-label">Accepted IP</span>
+    <span class="text-secondary"><%= estimate.accepted_ip %></span>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="text-right">Qty</th>
+        <th>Unit</th>
+        <th class="text-right">Rate</th>
+        <th class="text-right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const line of lines) { %>
+        <tr>
+          <td>
+            <%= line.description %>
+            <% if (line.detail) { %>
+              <div class="line-detail-text"><%= line.detail %></div>
+            <% } %>
+          </td>
+          <td class="text-right mono"><%= Number(line.quantity) %></td>
+          <td><%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></td>
+          <td class="text-right mono"><%= Number(line.unit_price).toFixed(2) %></td>
+          <td class="text-right mono"><%= Number(line.line_total).toFixed(2) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+
+  <div class="invoice-summary">
+    <div class="summary-row"><span>Subtotal</span><span class="mono"><%= Number(estimate.subtotal).toFixed(2) %></span></div>
+    <div class="summary-row"><span><%= estimate.vat_label %> <%= Number(estimate.vat_rate) %>%</span><span class="mono"><%= Number(estimate.vat_amount).toFixed(2) %></span></div>
+    <div class="summary-row total"><span>Total</span><span class="mono"><%= Number(estimate.total).toFixed(2) %> <%= estimate.currency %></span></div>
+  </div>
+</div>
+
+<% if (estimate.terms_text) { %>
+  <div class="card">
+    <h2>Terms & Conditions</h2>
+    <pre class="pre-wrap"><%= estimate.terms_text %></pre>
+  </div>
+<% } %>
+
+<% if (estimate.notes) { %>
+  <div class="card">
+    <h2>Notes</h2>
+    <p><%= estimate.notes %></p>
+  </div>
+<% } %>
+
+<% if (estimate.internal_notes) { %>
+  <div class="card">
+    <h2>Internal Notes</h2>
+    <p class="text-secondary"><%= estimate.internal_notes %></p>
+  </div>
+<% } %>
+
+<div class="card">
+  <h2>Actions</h2>
+  <div class="form-actions">
+    <% if (estimate.status === 'draft') { %>
+      <form method="POST" action="/estimates/<%= estimate.id %>/send" class="inline-form">
+        <button type="submit">Send to client</button>
+      </form>
+      <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="sent">
+        <button type="submit" class="btn-secondary">Mark as sent (no email)</button>
+      </form>
+      <form method="POST" action="/estimates/<%= estimate.id %>/delete" class="inline-form">
+        <button type="submit" class="btn-danger" onclick="return confirm('Delete this estimate?')">Delete</button>
+      </form>
+    <% } %>
+    <% if (['sent', 'viewed'].includes(estimate.status)) { %>
+      <form method="POST" action="/estimates/<%= estimate.id %>/send" class="inline-form">
+        <button type="submit">Send again</button>
+      </form>
+      <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="rejected">
+        <button type="submit" class="btn-secondary">Mark as rejected</button>
+      </form>
+      <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="expired">
+        <button type="submit" class="btn-secondary">Mark as expired</button>
+      </form>
+    <% } %>
+    <% if (estimate.status === 'accepted') { %>
+      <form method="POST" action="/estimates/<%= estimate.id %>/convert" class="inline-form">
+        <button type="submit">Convert to invoice</button>
+      </form>
+      <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
+        <input type="hidden" name="status" value="rejected">
+        <button type="submit" class="btn-danger" onclick="return confirm('Reject this accepted estimate?')">Reject</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+<%- include('../footer') %>

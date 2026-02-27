@@ -9,6 +9,7 @@ const dashboardRouter = require('./routes/dashboard');
 const settingsRouter = require('./routes/settings');
 const clientsRouter = require('./routes/clients');
 const invoicesRouter = require('./routes/invoices');
+const estimatesRouter = require('./routes/estimates');
 const publicRouter = require('./routes/public');
 const { startReminderCron } = require('./services/reminder');
 
@@ -59,6 +60,7 @@ app.use('/dashboard', requireAuth, dashboardRouter);
 app.use('/settings', requireAuth, settingsRouter);
 app.use('/clients', requireAuth, clientsRouter);
 app.use('/invoices', requireAuth, invoicesRouter);
+app.use('/estimates', requireAuth, estimatesRouter);
 
 // Root redirect
 app.get('/', (req, res) => {

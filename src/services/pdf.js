@@ -1,4 +1,4 @@
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb, degrees } = require('pdf-lib');
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
@@ -9,6 +9,18 @@ const FONT_SIZE = 9;
 const TITLE_SIZE = 16;
 const HEADING_SIZE = 11;
 
+const UNIT_LABELS = {
+  HUR: 'hrs',
+  DAY: 'days',
+  MON: 'months',
+  EA: 'ea',
+  C62: 'units',
+};
+
+function unitLabel(code) {
+  return UNIT_LABELS[code] || code.toLowerCase();
+}
+
 function fmt(value) {
   return Number(value).toFixed(2);
 }
@@ -18,7 +30,7 @@ function formatDate(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-async function generateInvoicePdf({ invoice, lines, profile, client }) {
+async function generateInvoicePdf({ invoice, lines, profile, client, documentTitle = 'INVOICE', dueDateLabel = 'Due:', statusWatermark = null }) {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Courier);
   const fontBold = await doc.embedFont(StandardFonts.CourierBold);
@@ -98,7 +110,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
   y -= LINE_HEIGHT;
 
   // --- Invoice title ---
-  drawText(`INVOICE ${invoice.number}`, MARGIN, TITLE_SIZE, true);
+  drawText(`${documentTitle} ${invoice.number}`, MARGIN, TITLE_SIZE, true);
   y -= LINE_HEIGHT * 2;
 
   // --- Bill-to (left) + Dates (right) ---
@@ -143,7 +155,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
   drawTextRight(formatDate(invoice.issue_date), FONT_SIZE, false);
   y -= LINE_HEIGHT;
   if (invoice.due_date) {
-    drawText('Due:', datesX, FONT_SIZE, true);
+    drawText(dueDateLabel, datesX, FONT_SIZE, true);
     drawTextRight(formatDate(invoice.due_date), FONT_SIZE, false);
     y -= LINE_HEIGHT;
   }
@@ -177,7 +189,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
     drawText(firstDescLine, colDesc, FONT_SIZE, false);
 
     // Qty
-    const qtyText = `${Number(line.quantity)} ${line.unit_code.toLowerCase()}`;
+    const qtyText = `${Number(line.quantity)} ${unitLabel(line.unit_code)}`;
     drawText(qtyText, colQty, FONT_SIZE, false);
 
     // Amount (right-aligned)
@@ -239,8 +251,8 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
   });
   y -= 4;
 
-  drawText(`Total ${invoice.currency}`, totalsLabelX, HEADING_SIZE, true);
-  drawTextRight(fmt(invoice.total), HEADING_SIZE, true);
+  drawText('Total', totalsLabelX, HEADING_SIZE, true);
+  drawTextRight(`${fmt(invoice.total)} ${invoice.currency}`, HEADING_SIZE, true);
   y -= LINE_HEIGHT + 4;
 
   // Paid / Balance
@@ -250,8 +262,8 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
     y -= LINE_HEIGHT;
 
     const balance = (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2);
-    drawText(`Balance ${invoice.currency}`, totalsLabelX, HEADING_SIZE, true);
-    drawTextRight(balance, HEADING_SIZE, true);
+    drawText('Balance', totalsLabelX, HEADING_SIZE, true);
+    drawTextRight(`${balance} ${invoice.currency}`, HEADING_SIZE, true);
     y -= LINE_HEIGHT + 4;
   }
 
@@ -299,6 +311,31 @@ async function generateInvoicePdf({ invoice, lines, profile, client }) {
       checkPage(LINE_HEIGHT);
       page.drawText(fl, { x: MARGIN, y, size: FONT_SIZE - 1, font, color: rgb(0.4, 0.4, 0.4) });
       y -= LINE_HEIGHT;
+    }
+  }
+
+  // Draw status watermark on all pages
+  if (statusWatermark) {
+    const wmFont = await doc.embedFont(StandardFonts.HelveticaBold);
+    const wmSize = 60;
+    const wmText = statusWatermark.toUpperCase();
+    const wmWidth = wmFont.widthOfTextAtSize(wmText, wmSize);
+    const wmColor = statusWatermark === 'PAID'
+      ? rgb(0.0, 0.6, 0.2)
+      : rgb(0.8, 0.0, 0.0);
+
+    const pages = doc.getPages();
+    for (const p of pages) {
+      const { width, height } = p.getSize();
+      p.drawText(wmText, {
+        x: (width - wmWidth * Math.cos(35 * Math.PI / 180)) / 2,
+        y: height / 2,
+        size: wmSize,
+        font: wmFont,
+        color: wmColor,
+        opacity: 0.15,
+        rotate: degrees(-35),
+      });
     }
   }
 

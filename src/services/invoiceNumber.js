@@ -16,4 +16,17 @@ async function getNextInvoiceNumber(prefix = 'INV') {
   return `${yy}${String(num).padStart(3, '0')}`;
 }
 
-module.exports = { getNextInvoiceNumber };
+async function decrementIfLast(prefix, year, number) {
+  const { rows } = await pool.query(
+    'SELECT next_number FROM invoice_sequences WHERE prefix = $1 AND year = $2',
+    [prefix, year]
+  );
+  if (rows.length && rows[0].next_number - 1 === number) {
+    await pool.query(
+      'UPDATE invoice_sequences SET next_number = next_number - 1 WHERE prefix = $1 AND year = $2',
+      [prefix, year]
+    );
+  }
+}
+
+module.exports = { getNextInvoiceNumber, decrementIfLast };

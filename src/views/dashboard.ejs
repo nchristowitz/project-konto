@@ -1,8 +1,29 @@
 <%- include('header') %>
 <div class="page-header">
   <h1>Dashboard</h1>
-  <a href="/invoices/new" class="btn">New invoice</a>
+  <div class="header-actions">
+    <a href="/estimates/new" class="btn-secondary">New estimate</a>
+    <a href="/invoices/new" class="btn">New invoice</a>
+  </div>
 </div>
+
+<% if (acceptedEstimates.length > 0) { %>
+<div class="card">
+  <h2 class="section-label" style="color: var(--success)">Accepted Estimates</h2>
+  <table>
+    <tbody>
+      <% for (const est of acceptedEstimates) { %>
+        <tr>
+          <td><a href="/estimates/<%= est.id %>" class="mono"><%= est.number %></a></td>
+          <td><%= est.client_name %></td>
+          <td class="text-right mono"><%= Number(est.total).toFixed(2) %> <%= est.currency %></td>
+          <td class="text-right"><%= est.accepted_at ? new Date(est.accepted_at).toISOString().slice(0, 10) : '' %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
 
 <% if (overdue.length > 0) { %>
 <div class="card">
@@ -13,7 +34,7 @@
         <tr>
           <td><a href="/invoices/<%= inv.id %>" class="mono"><%= inv.number %></a></td>
           <td><%= inv.client_name %></td>
-          <td class="text-right mono"><%= inv.currency %> <%= Number(inv.total).toFixed(2) %></td>
+          <td class="text-right mono"><%= Number(inv.total).toFixed(2) %> <%= inv.currency %></td>
           <td class="text-right"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
         </tr>
       <% } %>
@@ -33,9 +54,9 @@
           <tr>
             <td><a href="/invoices/<%= inv.id %>" class="mono"><%= inv.number %></a></td>
             <td><%= inv.client_name %></td>
-            <td class="text-right mono"><%= inv.currency %> <%= Number(inv.total).toFixed(2) %></td>
+            <td class="text-right mono"><%= Number(inv.total).toFixed(2) %> <%= inv.currency %></td>
             <td class="text-right"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-            <td><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+            <td class="text-right"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
           </tr>
         <% } %>
       </tbody>
@@ -46,15 +67,29 @@
 <div class="stats-grid">
   <div class="card stat-card">
     <h2 class="section-label">This Month</h2>
-    <div class="stat-row"><span>Invoiced</span><span class="mono"><%= Number(monthStats.invoiced).toFixed(2) %></span></div>
-    <div class="stat-row"><span>Received</span><span class="mono"><%= Number(monthStats.received).toFixed(2) %></span></div>
-    <div class="stat-row"><span>Pending</span><span class="mono"><%= Number(monthStats.pending).toFixed(2) %></span></div>
+    <% if (monthStats.length === 0) { %>
+      <div class="stat-row"><span class="text-secondary">No invoices this month</span></div>
+    <% } else { %>
+      <% for (const s of monthStats) { %>
+        <% if (monthStats.length > 1) { %><div class="stat-currency-label"><%= s.currency %></div><% } %>
+        <div class="stat-row"><span>Invoiced</span><span class="mono"><%= Number(s.invoiced).toFixed(2) %> <%= s.currency %></span></div>
+        <div class="stat-row"><span>Received</span><span class="mono"><%= Number(s.received).toFixed(2) %> <%= s.currency %></span></div>
+        <div class="stat-row"><span>Pending</span><span class="mono"><%= Number(s.pending).toFixed(2) %> <%= s.currency %></span></div>
+      <% } %>
+    <% } %>
   </div>
   <div class="card stat-card">
     <h2 class="section-label">This Year</h2>
-    <div class="stat-row"><span>Invoiced</span><span class="mono"><%= Number(yearStats.invoiced).toFixed(2) %></span></div>
-    <div class="stat-row"><span>Received</span><span class="mono"><%= Number(yearStats.received).toFixed(2) %></span></div>
-    <div class="stat-row"><span>Pending</span><span class="mono"><%= Number(yearStats.pending).toFixed(2) %></span></div>
+    <% if (yearStats.length === 0) { %>
+      <div class="stat-row"><span class="text-secondary">No invoices this year</span></div>
+    <% } else { %>
+      <% for (const s of yearStats) { %>
+        <% if (yearStats.length > 1) { %><div class="stat-currency-label"><%= s.currency %></div><% } %>
+        <div class="stat-row"><span>Invoiced</span><span class="mono"><%= Number(s.invoiced).toFixed(2) %> <%= s.currency %></span></div>
+        <div class="stat-row"><span>Received</span><span class="mono"><%= Number(s.received).toFixed(2) %> <%= s.currency %></span></div>
+        <div class="stat-row"><span>Pending</span><span class="mono"><%= Number(s.pending).toFixed(2) %> <%= s.currency %></span></div>
+      <% } %>
+    <% } %>
   </div>
 </div>
 <%- include('footer') %>
