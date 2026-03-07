@@ -8,7 +8,7 @@ function amt(value) {
   return Number(value).toFixed(2);
 }
 
-function buildUblInvoice({ invoice, lines, profile, client }) {
+function buildUblInvoice({ invoice, lines, profile, client, bankAccount }) {
   const currency = invoice.currency || 'EUR';
   const isReverseCharge = invoice.reverse_charge;
   const vatCategory = isReverseCharge ? 'AE' : 'S';
@@ -98,17 +98,23 @@ function buildUblInvoice({ invoice, lines, profile, client }) {
   };
 
   // Build payment means (bank transfer)
+  // Use bank account snapshot if available, fall back to profile for backward compat
+  const ba = bankAccount || {};
+  const iban = ba.iban || profile.iban;
+  const bic = ba.bic || profile.bic;
+  const accountId = iban || ba.account_number;
+  const branchId = bic || ba.swift_code;
   const paymentMeans = [];
-  if (profile.iban) {
+  if (accountId) {
     const pm = {
       'cbc:PaymentMeansCode': '30',
       'cac:PayeeFinancialAccount': {
-        'cbc:ID': profile.iban,
+        'cbc:ID': accountId,
       },
     };
-    if (profile.bic) {
+    if (branchId) {
       pm['cac:PayeeFinancialAccount']['cac:FinancialInstitutionBranch'] = {
-        'cbc:ID': profile.bic,
+        'cbc:ID': branchId,
       };
     }
     paymentMeans.push(pm);
@@ -160,6 +166,10 @@ function buildUblInvoice({ invoice, lines, profile, client }) {
     ublInvoice['ubl:Invoice']['cbc:DueDate'] = formatDate(invoice.due_date);
   }
 
+  if (invoice.reference) {
+    ublInvoice['ubl:Invoice']['cbc:BuyerReference'] = invoice.reference.split('\n')[0].trim();
+  }
+
   if (invoice.notes) {
     ublInvoice['ubl:Invoice']['cbc:Note'] = [invoice.notes];
   }
@@ -201,7 +211,8 @@ async function generateEInvoice(invoiceId) {
   const pdfBytes = await generateInvoicePdf({ invoice, lines: lineRows, profile, client, statusWatermark });
 
   // 3. Build UBL invoice data
-  const ublData = buildUblInvoice({ invoice, lines: lineRows, profile, client });
+  const bankAccount = invoice.bank_account_snapshot || {};
+  const ublData = buildUblInvoice({ invoice, lines: lineRows, profile, client, bankAccount });
 
   // 4. Generate Factur-X PDF/A with embedded XML
   const invoiceService = new InvoiceService(console);

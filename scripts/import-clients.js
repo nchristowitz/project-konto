@@ -107,53 +107,100 @@ async function importClients(csvPath) {
     };
   });
 
-  // Count occurrences of each org name
-  const orgCounts = {};
+  // Merge multi-row orgs: first row becomes primary, extra emails + contacts collected
+  const orgMap = new Map();
+  const toImport = [];
+
   for (const c of clients) {
     if (c._org) {
-      orgCounts[c._org] = (orgCounts[c._org] || 0) + 1;
+      if (!orgMap.has(c._org)) {
+        c.additional_emails = [];
+        c.additional_contacts = [];
+        orgMap.set(c._org, c);
+      } else {
+        const primary = orgMap.get(c._org);
+        if (c.email && c.email !== primary.email && !primary.additional_emails.includes(c.email)) {
+          primary.additional_emails.push(c.email);
+        }
+        if (c.contact_person && c.contact_person !== primary.contact_person) {
+          primary.additional_contacts.push(c.contact_person);
+        }
+      }
+    } else {
+      c.additional_emails = [];
+      c.additional_contacts = [];
+      const key = c.name;
+      if (!orgMap.has(key)) {
+        orgMap.set(key, c);
+      }
     }
   }
 
-  // Filter: skip orgs that appear more than once, keep unique orgs + individuals
-  const seen = new Set();
-  const toImport = [];
-  for (const c of clients) {
-    if (c._org && orgCounts[c._org] > 1) continue; // skip duplicates
-    if (seen.has(c.name)) continue;
-    seen.add(c.name);
+  for (const c of orgMap.values()) {
+    // Append additional contact persons to notes
+    if (c.additional_contacts.length) {
+      const contactNote = `Additional contacts: ${c.additional_contacts.join(', ')}`;
+      c.notes = c.notes ? `${c.notes}\n${contactNote}` : contactNote;
+    }
     toImport.push(c);
   }
 
-  // Show what will be skipped
-  const skippedOrgs = [...new Set(
-    clients.filter(c => c._org && orgCounts[c._org] > 1).map(c => c._org)
-  )];
-  if (skippedOrgs.length) {
-    console.log(`\nSkipping ${skippedOrgs.length} orgs with multiple rows:`);
-    skippedOrgs.forEach(o => console.log(`  - ${o}`));
+  const mergedOrgs = [...orgMap.values()].filter(c => c.additional_emails.length || c.additional_contacts.length);
+  if (mergedOrgs.length) {
+    console.log(`\nMerged ${mergedOrgs.length} orgs with multiple rows:`);
+    mergedOrgs.forEach(c => console.log(`  - ${c.name} (+${c.additional_emails.length} emails, +${c.additional_contacts.length} contacts)`));
   }
 
-  // Import
+  // Import (upsert by name — existing clients get additional_emails updated)
   console.log(`\nImporting ${toImport.length} clients:\n`);
-  let imported = 0;
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
   for (const c of toImport) {
-    await pool.query(`
-      INSERT INTO clients (
-        name, contact_person, email,
-        address_line1, address_line2, city, postal_code,
-        country_code, notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-    `, [
-      c.name, c.contact_person, c.email,
-      c.address_line1, c.address_line2, c.city, c.postal_code,
-      c.country_code, c.notes,
-    ]);
-    console.log(`  + ${c.name}`);
-    imported++;
+    const { rows: existing } = await pool.query(
+      'SELECT id, additional_emails FROM clients WHERE name = $1', [c.name]
+    );
+
+    if (existing.length) {
+      // Merge additional_emails into existing client
+      const prev = existing[0].additional_emails || [];
+      const allEmails = [...new Set([...prev, ...c.additional_emails])];
+      // Also add the CSV primary email if it's different from what's stored and not already tracked
+      if (c.email) {
+        const { rows: cur } = await pool.query('SELECT email FROM clients WHERE id = $1', [existing[0].id]);
+        if (cur[0].email !== c.email && !allEmails.includes(c.email)) {
+          allEmails.push(c.email);
+        }
+      }
+      if (allEmails.length !== prev.length) {
+        await pool.query(
+          'UPDATE clients SET additional_emails = $1, updated_at = NOW() WHERE id = $2',
+          [allEmails, existing[0].id]
+        );
+        console.log(`  ~ ${c.name} (updated +${allEmails.length - prev.length} emails)`);
+        updated++;
+      } else {
+        console.log(`  - ${c.name} (unchanged)`);
+        skipped++;
+      }
+    } else {
+      await pool.query(`
+        INSERT INTO clients (
+          name, contact_person, email, additional_emails,
+          address_line1, address_line2, city, postal_code,
+          country_code, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      `, [
+        c.name, c.contact_person, c.email, c.additional_emails,
+        c.address_line1, c.address_line2, c.city, c.postal_code,
+        c.country_code, c.notes,
+      ]);
+      console.log(`  + ${c.name}`);
+      inserted++;
+    }
   }
 
-  console.log(`\nDone. ${imported} clients imported.`);
+  console.log(`\nDone. ${inserted} inserted, ${updated} updated, ${skipped} unchanged.`);
   await pool.end();
 }
 

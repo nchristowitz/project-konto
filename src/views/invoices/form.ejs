@@ -13,6 +13,7 @@
               data-currency="<%= c.currency %>"
               data-vat="<%= c.default_vat_rate %>"
               data-terms="<%= c.payment_terms_days %>"
+              data-bank-account="<%= c.default_bank_account_id || '' %>"
               <%= (invoice && invoice.client_id === c.id) || (selectedClient && selectedClient.id === c.id) ? 'selected' : '' %>
             ><%= c.name %></option>
           <% } %>
@@ -63,6 +64,10 @@
         <label for="vat_note">VAT note</label>
         <input type="text" id="vat_note" name="vat_note" value="<%= invoice ? invoice.vat_note || '' : '' %>">
       </div>
+      <div class="form-group full">
+        <label for="reference">Reference</label>
+        <textarea id="reference" name="reference" rows="2" placeholder="PO, PR, or other reference numbers"><%= invoice ? invoice.reference || '' : '' %></textarea>
+      </div>
     </div>
 
     <h2>Items</h2>
@@ -110,7 +115,26 @@
     <h2>Payment Details</h2>
     <div class="form-grid">
       <div class="form-group full">
-        <textarea name="payment_details" rows="4"><%= invoice ? invoice.payment_details || '' : settings.default_payment_details || '' %></textarea>
+        <label for="bank_account_id">Bank account</label>
+        <select id="bank_account_id" name="bank_account_id">
+          <option value="">None</option>
+          <% for (const ba of bankAccounts) { %>
+            <option value="<%= ba.id %>"
+              data-iban="<%= ba.iban || '' %>"
+              data-bic="<%= ba.bic || '' %>"
+              data-bank-name="<%= ba.bank_name || '' %>"
+              data-account-holder="<%= ba.account_holder || '' %>"
+              data-account-number="<%= ba.account_number || '' %>"
+              data-routing-number="<%= ba.routing_number || '' %>"
+              data-swift-code="<%= ba.swift_code || '' %>"
+              <%= invoice ? (invoice.bank_account_id === ba.id ? 'selected' : '') : (ba.is_default ? 'selected' : '') %>
+            ><%= ba.label %></option>
+          <% } %>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Payment details</label>
+        <textarea id="payment_details" name="payment_details" rows="4"><%= invoice ? invoice.payment_details || '' : settings.default_payment_details || '' %></textarea>
       </div>
     </div>
 

@@ -160,6 +160,30 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
     y -= LINE_HEIGHT;
   }
 
+  // Reference rows
+  if (invoice.reference) {
+    const refLines = invoice.reference.split('\n').filter(r => r.trim());
+    for (const ref of refLines) {
+      drawText('Reference:', datesX, FONT_SIZE, true);
+      drawTextRight(ref.trim(), FONT_SIZE, false);
+      y -= LINE_HEIGHT;
+    }
+  }
+
+  // Amount Due in header
+  const amountDue = (Number(invoice.total) - Number(invoice.amount_paid || 0)).toFixed(2);
+  page.drawLine({
+    start: { x: datesX, y: y + 4 },
+    end: { x: PAGE_WIDTH - MARGIN, y: y + 4 },
+    thickness: 0.5,
+    color: rgb(0.6, 0.6, 0.6),
+  });
+  y -= 4;
+  const amountDueLabel = documentTitle === 'ESTIMATE' ? `Total (${invoice.currency})` : `Amount Due (${invoice.currency})`;
+  drawText(amountDueLabel, datesX, HEADING_SIZE, true);
+  drawTextRight(`${amountDue}`, HEADING_SIZE, true);
+  y -= LINE_HEIGHT;
+
   y = Math.min(y, billToEndY);
   y -= LINE_HEIGHT;
 

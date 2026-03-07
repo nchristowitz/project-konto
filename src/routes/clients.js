@@ -93,8 +93,11 @@ router.post('/batch-delete', async (req, res) => {
 });
 
 // GET /clients/new
-router.get('/new', (req, res) => {
-  res.render('clients/form', { clientData: null });
+router.get('/new', async (req, res) => {
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT id, label, is_default FROM bank_accounts ORDER BY is_default DESC, label'
+  );
+  res.render('clients/form', { clientData: null, bankAccounts });
 });
 
 // POST /clients
@@ -103,22 +106,28 @@ router.post('/', async (req, res) => {
     name, contact_person, email, address_line1, address_line2,
     city, postal_code, country_code, vat_number, currency,
     default_vat_rate, payment_terms_days, notes,
+    default_bank_account_id,
   } = req.body;
+
+  let additionalEmails = req.body['additional_emails[]'] || [];
+  if (!Array.isArray(additionalEmails)) additionalEmails = [additionalEmails];
+  additionalEmails = additionalEmails.map(e => e.trim()).filter(Boolean);
 
   await pool.query(`
     INSERT INTO clients (
-      name, contact_person, email, address_line1, address_line2,
+      name, contact_person, email, additional_emails, address_line1, address_line2,
       city, postal_code, country_code, vat_number, currency,
-      default_vat_rate, payment_terms_days, notes
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      default_vat_rate, payment_terms_days, notes, default_bank_account_id
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
   `, [
-    name, contact_person || null, email || null,
+    name, contact_person || null, email || null, additionalEmails,
     address_line1 || null, address_line2 || null,
     city || null, postal_code || null, country_code || 'DE',
     vat_number || null, currency || 'EUR',
     parseFloat(default_vat_rate) || 19,
     parseInt(payment_terms_days, 10) || 30,
     notes || null,
+    default_bank_account_id ? parseInt(default_bank_account_id, 10) : null,
   ]);
 
   res.redirect('/clients');
@@ -127,7 +136,10 @@ router.post('/', async (req, res) => {
 // GET /clients/:id — show page
 router.get('/:id', async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT * FROM clients WHERE id = $1', [req.params.id]
+    `SELECT c.*, ba.label AS bank_account_label
+     FROM clients c
+     LEFT JOIN bank_accounts ba ON c.default_bank_account_id = ba.id
+     WHERE c.id = $1`, [req.params.id]
   );
   if (!rows.length) return res.status(404).send('Client not found');
   const client = rows[0];
@@ -170,7 +182,10 @@ router.get('/:id/edit', async (req, res) => {
     'SELECT * FROM clients WHERE id = $1', [req.params.id]
   );
   if (!rows.length) return res.status(404).send('Client not found');
-  res.render('clients/form', { clientData: rows[0] });
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT id, label, is_default FROM bank_accounts ORDER BY is_default DESC, label'
+  );
+  res.render('clients/form', { clientData: rows[0], bankAccounts });
 });
 
 // POST /clients/:id
@@ -179,25 +194,34 @@ router.post('/:id', async (req, res) => {
     name, contact_person, email, address_line1, address_line2,
     city, postal_code, country_code, vat_number, currency,
     default_vat_rate, payment_terms_days, notes,
+    default_bank_account_id,
   } = req.body;
+
+  let additionalEmails = req.body['additional_emails[]'] || [];
+  if (!Array.isArray(additionalEmails)) additionalEmails = [additionalEmails];
+  additionalEmails = additionalEmails.map(e => e.trim()).filter(Boolean);
 
   await pool.query(`
     UPDATE clients SET
       name = $1, contact_person = $2, email = $3,
-      address_line1 = $4, address_line2 = $5,
-      city = $6, postal_code = $7, country_code = $8,
-      vat_number = $9, currency = $10,
-      default_vat_rate = $11, payment_terms_days = $12,
-      notes = $13, updated_at = NOW()
-    WHERE id = $14
+      additional_emails = $4,
+      address_line1 = $5, address_line2 = $6,
+      city = $7, postal_code = $8, country_code = $9,
+      vat_number = $10, currency = $11,
+      default_vat_rate = $12, payment_terms_days = $13,
+      notes = $14, default_bank_account_id = $15,
+      updated_at = NOW()
+    WHERE id = $16
   `, [
     name, contact_person || null, email || null,
+    additionalEmails,
     address_line1 || null, address_line2 || null,
     city || null, postal_code || null, country_code || 'DE',
     vat_number || null, currency || 'EUR',
     parseFloat(default_vat_rate) || 19,
     parseInt(payment_terms_days, 10) || 30,
     notes || null,
+    default_bank_account_id ? parseInt(default_bank_account_id, 10) : null,
     req.params.id,
   ]);
 

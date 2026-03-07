@@ -49,22 +49,184 @@
         <label for="tax_number">Tax number</label>
         <input type="text" id="tax_number" name="tax_number" value="<%= profile ? profile.tax_number : '' %>">
       </div>
-      <div class="form-group">
-        <label for="bank_name">Bank name</label>
-        <input type="text" id="bank_name" name="bank_name" value="<%= profile ? profile.bank_name : '' %>">
-      </div>
-      <div class="form-group">
-        <label for="iban">IBAN</label>
-        <input type="text" id="iban" name="iban" value="<%= profile ? profile.iban : '' %>">
-      </div>
-      <div class="form-group">
-        <label for="bic">BIC</label>
-        <input type="text" id="bic" name="bic" value="<%= profile ? profile.bic : '' %>">
-      </div>
     </div>
     <button type="submit">Save profile</button>
   </form>
 </div>
+
+<div class="card">
+  <h2>Bank Accounts</h2>
+
+  <div id="bank-accounts">
+    <% for (const ba of bankAccounts) { %>
+    <div class="ba-card" style="border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem">
+      <!-- View mode -->
+      <div class="ba-view">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <strong><%= ba.label %></strong>
+            <% if (ba.is_default) { %><span class="status status-paid" style="margin-left:0.5rem">Default</span><% } %>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <% if (!ba.is_default) { %>
+            <form method="POST" action="/settings/bank-accounts/<%= ba.id %>/default" class="inline-form">
+              <button type="submit" class="btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.8rem">Set default</button>
+            </form>
+            <% } %>
+            <button type="button" class="btn-secondary ba-edit-btn" style="padding:0.25rem 0.5rem;font-size:0.8rem">Edit</button>
+            <form method="POST" action="/settings/bank-accounts/<%= ba.id %>/delete" class="inline-form">
+              <button type="submit" class="btn-danger" style="padding:0.25rem 0.5rem;font-size:0.8rem" onclick="return confirm('Delete this bank account?')">Delete</button>
+            </form>
+          </div>
+        </div>
+        <div style="margin-top:0.5rem;color:var(--text-secondary);font-size:0.9rem">
+          <% if (ba.account_holder) { %><div>Account holder: <%= ba.account_holder %></div><% } %>
+          <% if (ba.bank_name) { %><div>Bank: <%= ba.bank_name %></div><% } %>
+          <% if (ba.iban) { %><div>IBAN: <%= ba.iban %></div><% } %>
+          <% if (ba.bic) { %><div>BIC: <%= ba.bic %></div><% } %>
+          <% if (ba.account_number) { %><div>Account: <%= ba.account_number %></div><% } %>
+          <% if (ba.routing_number) { %><div>Routing: <%= ba.routing_number %></div><% } %>
+          <% if (ba.swift_code) { %><div>SWIFT: <%= ba.swift_code %></div><% } %>
+        </div>
+      </div>
+      <!-- Edit mode (hidden by default) -->
+      <div class="ba-edit" style="display:none">
+        <form method="POST" action="/settings/bank-accounts/<%= ba.id %>">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Label</label>
+              <input type="text" name="label" value="<%= ba.label %>" required>
+            </div>
+            <div class="form-group">
+              <label>Bank name</label>
+              <input type="text" name="bank_name" value="<%= ba.bank_name || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Account holder</label>
+              <input type="text" name="account_holder" value="<%= ba.account_holder || '' %>">
+            </div>
+            <div class="form-group">
+              <label>IBAN</label>
+              <input type="text" name="iban" value="<%= ba.iban || '' %>">
+            </div>
+            <div class="form-group">
+              <label>BIC</label>
+              <input type="text" name="bic" value="<%= ba.bic || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Account number</label>
+              <input type="text" name="account_number" value="<%= ba.account_number || '' %>">
+            </div>
+            <div class="form-group">
+              <label>Routing number</label>
+              <input type="text" name="routing_number" value="<%= ba.routing_number || '' %>">
+            </div>
+            <div class="form-group">
+              <label>SWIFT code</label>
+              <input type="text" name="swift_code" value="<%= ba.swift_code || '' %>">
+            </div>
+            <div class="form-group">
+              <label>&nbsp;</label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="is_default" <%= ba.is_default ? 'checked' : '' %>>
+                Default account
+              </label>
+            </div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+            <button type="submit">Save</button>
+            <button type="button" class="btn-secondary ba-cancel-btn">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Add new bank account (hidden by default) -->
+  <div id="ba-new-form" style="display:none;border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem">
+    <form method="POST" action="/settings/bank-accounts">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Label</label>
+          <input type="text" name="label" required>
+        </div>
+        <div class="form-group">
+          <label>Bank name</label>
+          <input type="text" name="bank_name">
+        </div>
+        <div class="form-group">
+          <label>Account holder</label>
+          <input type="text" name="account_holder">
+        </div>
+        <div class="form-group">
+          <label>IBAN</label>
+          <input type="text" name="iban">
+        </div>
+        <div class="form-group">
+          <label>BIC</label>
+          <input type="text" name="bic">
+        </div>
+        <div class="form-group">
+          <label>Account number</label>
+          <input type="text" name="account_number">
+        </div>
+        <div class="form-group">
+          <label>Routing number</label>
+          <input type="text" name="routing_number">
+        </div>
+        <div class="form-group">
+          <label>SWIFT code</label>
+          <input type="text" name="swift_code">
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="is_default">
+            Default account
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+        <button type="submit">Add account</button>
+        <button type="button" class="btn-secondary" id="ba-cancel-new">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <button type="button" id="ba-add-btn" class="btn-secondary">+ Add bank account</button>
+</div>
+
+<script>
+(function() {
+  // Toggle edit/view on existing cards
+  document.getElementById('bank-accounts').addEventListener('click', function(e) {
+    const card = e.target.closest('.ba-card');
+    if (!card) return;
+    if (e.target.classList.contains('ba-edit-btn')) {
+      card.querySelector('.ba-view').style.display = 'none';
+      card.querySelector('.ba-edit').style.display = '';
+    }
+    if (e.target.classList.contains('ba-cancel-btn')) {
+      card.querySelector('.ba-view').style.display = '';
+      card.querySelector('.ba-edit').style.display = 'none';
+    }
+  });
+
+  // Add new form toggle
+  var newForm = document.getElementById('ba-new-form');
+  var addBtn = document.getElementById('ba-add-btn');
+  addBtn.addEventListener('click', function() {
+    newForm.style.display = '';
+    addBtn.style.display = 'none';
+    newForm.querySelector('input[name="label"]').focus();
+  });
+  document.getElementById('ba-cancel-new').addEventListener('click', function() {
+    newForm.style.display = 'none';
+    addBtn.style.display = '';
+  });
+})();
+</script>
 
 <div class="card">
   <h2>Defaults & Reminders</h2>

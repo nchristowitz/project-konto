@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { pool } = require('../db');
 const { generateInvoicePdf } = require('./pdf');
+const { formatPaymentDetails } = require('./bankAccount');
 
 async function generateEstimatePdf(estimateId) {
   const { rows: estimateRows } = await pool.query(
@@ -25,6 +26,7 @@ async function generateEstimatePdf(estimateId) {
     ...estimate,
     due_date: estimate.valid_until,
     amount_paid: 0,
+    payment_details: formatPaymentDetails(estimate.bank_account_snapshot) || null,
   };
 
   const pdfBytes = await generateInvoicePdf({

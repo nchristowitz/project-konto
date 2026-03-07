@@ -1,6 +1,6 @@
 :root {
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
   --text: #1a1a1a;
   --text-secondary: #6b7280;
   --bg: #ffffff;
@@ -326,6 +326,7 @@ th {
 td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
+  vertical-align: top;
 }
 
 tr:last-child td {
@@ -382,7 +383,7 @@ td a:hover {
 /* Utilities */
 .text-right { text-align: right; }
 .text-secondary { color: var(--text-secondary); }
-.mono { font-family: var(--font-mono); font-size: 13px; }
+
 .pre-wrap { white-space: pre-wrap; font-size: var(--size); }
 
 /* Status badges */
@@ -467,8 +468,6 @@ td a:hover {
 }
 
 .line-total-value {
-  font-family: var(--font-mono);
-  font-size: 13px;
   line-height: 36px;
 }
 
@@ -539,6 +538,14 @@ td a:hover {
   margin-top: 4px;
   padding-top: 8px;
   font-weight: 600;
+}
+
+/* Client details (2-column layout on show page) */
+.client-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 32px;
+  margin-bottom: 20px;
 }
 
 /* Invoice meta (show page) */
@@ -639,7 +646,7 @@ td a:hover {
 }
 
 /* ============================================================
-   Public invoice document — monospaced A4 aesthetic
+   Public invoice document
    ============================================================ */
 .public-invoice-page {
   background: #e5e5e5;
@@ -672,7 +679,7 @@ td a:hover {
   margin: 0 auto 40px;
   padding: 60px;
   background: #fff;
-  font-family: var(--font-mono);
+  font-family: var(--font);
   font-size: 13px;
   line-height: 1.6;
   color: var(--text);
@@ -789,7 +796,6 @@ td a:hover {
 
 .inv-pre {
   white-space: pre-wrap;
-  font-family: var(--font-mono);
   font-size: 13px;
   margin: 4px 0;
 }
@@ -898,3 +904,15 @@ td a:hover {
 }
 .inv-watermark-paid { color: #16a34a; }
 .inv-watermark-cancelled { color: #dc2626; }
+
+/* Sortable table headers */
+.inv-amount-due {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+th[data-sort] { cursor: pointer; user-select: none; }
+th[data-sort]:hover { text-decoration: underline; }
+th[data-sort]::after { content: ''; margin-left: 4px; }
+th.sort-asc::after { content: ' \25B2'; }
+th.sort-desc::after { content: ' \25BC'; }

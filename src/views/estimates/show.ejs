@@ -55,6 +55,12 @@
     <span class="meta-label">Valid until</span>
     <span><%= estimate.valid_until ? new Date(estimate.valid_until).toISOString().slice(0, 10) : '' %></span>
   </div>
+  <% if (estimate.reference) { %>
+  <div class="meta-row">
+    <span class="meta-label">Reference</span>
+    <span class="pre-wrap"><%= estimate.reference %></span>
+  </div>
+  <% } %>
   <% if (estimate.view_count > 0) { %>
   <div class="meta-row">
     <span class="meta-label">Views</span>
@@ -95,19 +101,19 @@
               <div class="line-detail-text"><%= line.detail %></div>
             <% } %>
           </td>
-          <td class="text-right mono"><%= Number(line.quantity) %></td>
+          <td class="text-right"><%= Number(line.quantity) %></td>
           <td><%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></td>
-          <td class="text-right mono"><%= Number(line.unit_price).toFixed(2) %></td>
-          <td class="text-right mono"><%= Number(line.line_total).toFixed(2) %></td>
+          <td class="text-right"><%= fmt(line.unit_price) %></td>
+          <td class="text-right"><%= fmt(line.line_total) %></td>
         </tr>
       <% } %>
     </tbody>
   </table>
 
   <div class="invoice-summary">
-    <div class="summary-row"><span>Subtotal</span><span class="mono"><%= Number(estimate.subtotal).toFixed(2) %></span></div>
-    <div class="summary-row"><span><%= estimate.vat_label %> <%= Number(estimate.vat_rate) %>%</span><span class="mono"><%= Number(estimate.vat_amount).toFixed(2) %></span></div>
-    <div class="summary-row total"><span>Total</span><span class="mono"><%= Number(estimate.total).toFixed(2) %> <%= estimate.currency %></span></div>
+    <div class="summary-row"><span>Subtotal</span><span ><%= fmt(estimate.subtotal) %></span></div>
+    <div class="summary-row"><span><%= estimate.vat_label %> <%= Number(estimate.vat_rate) %>%</span><span ><%= fmt(estimate.vat_amount) %></span></div>
+    <div class="summary-row total"><span>Total</span><span ><%= fmt(estimate.total) %> <%= estimate.currency %></span></div>
   </div>
 </div>
 

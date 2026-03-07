@@ -1,5 +1,9 @@
 // Dynamic line items and total calculation for invoice form
 
+function fmtNum(n) {
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 const lineItemsContainer = document.getElementById('line-items');
 const addLineBtn = document.getElementById('add-line');
 
@@ -65,7 +69,38 @@ if (vatRateInput) {
   vatRateInput.addEventListener('input', recalculate);
 }
 
-// Client selector: auto-fill currency, VAT, and due date
+// Bank account selector
+const bankAccountSelect = document.getElementById('bank_account_id');
+const paymentDetailsTextarea = document.getElementById('payment_details');
+
+function populatePaymentDetails() {
+  if (!bankAccountSelect || !paymentDetailsTextarea) return;
+  const opt = bankAccountSelect.options[bankAccountSelect.selectedIndex];
+  if (!opt || !opt.value) return;
+
+  const lines = [];
+  const holder = opt.dataset.accountHolder;
+  const bank = opt.dataset.bankName;
+  const iban = opt.dataset.iban;
+  const bic = opt.dataset.bic;
+  const accountNumber = opt.dataset.accountNumber;
+  const routingNumber = opt.dataset.routingNumber;
+  const swiftCode = opt.dataset.swiftCode;
+  if (holder) lines.push('Account holder: ' + holder);
+  if (bank) lines.push('Bank: ' + bank);
+  if (iban) lines.push('IBAN: ' + iban);
+  if (bic) lines.push('BIC: ' + bic);
+  if (accountNumber) lines.push('Account: ' + accountNumber);
+  if (routingNumber) lines.push('Routing: ' + routingNumber);
+  if (swiftCode) lines.push('SWIFT: ' + swiftCode);
+  paymentDetailsTextarea.value = lines.join('\n');
+}
+
+if (bankAccountSelect) {
+  bankAccountSelect.addEventListener('change', populatePaymentDetails);
+}
+
+// Client selector: auto-fill currency, VAT, due date, and bank account
 const clientSelect = document.getElementById('client_id');
 if (clientSelect) {
   clientSelect.addEventListener('change', () => {
@@ -81,6 +116,19 @@ if (clientSelect) {
       dueDate.setDate(dueDate.getDate() + terms);
       document.getElementById('due_date').value = dueDate.toISOString().slice(0, 10);
 
+      // Set bank account from client default
+      if (bankAccountSelect) {
+        const clientBankId = opt.dataset.bankAccount;
+        if (clientBankId) {
+          bankAccountSelect.value = clientBankId;
+        } else {
+          // Fall back to system default (first option with is_default, or first non-empty)
+          const defaultOpt = bankAccountSelect.querySelector('option[value]:not([value=""])');
+          if (defaultOpt) bankAccountSelect.value = defaultOpt.value;
+        }
+        populatePaymentDetails();
+      }
+
       recalculate();
     }
   });
@@ -95,7 +143,7 @@ function recalculate() {
     const price = parseFloat(item.querySelector('.price-input')?.value) || 0;
     const lineTotal = Math.round(qty * price * 100) / 100;
     const display = item.querySelector('.line-total-value');
-    if (display) display.textContent = lineTotal.toFixed(2);
+    if (display) display.textContent = fmtNum(lineTotal);
     subtotal += lineTotal;
   });
 
@@ -106,10 +154,10 @@ function recalculate() {
 
   const vatLabel = document.getElementById('vat_label')?.value || 'VAT';
 
-  document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+  document.getElementById('subtotal').textContent = fmtNum(subtotal);
   document.getElementById('vat-label').textContent = `${vatLabel} ${vatRate}%`;
-  document.getElementById('vat-total').textContent = vatAmount.toFixed(2);
-  document.getElementById('grand-total').textContent = total.toFixed(2);
+  document.getElementById('vat-total').textContent = fmtNum(vatAmount);
+  document.getElementById('grand-total').textContent = fmtNum(total);
 }
 
 // Initial calculation

@@ -17,6 +17,30 @@
         <input type="email" id="email" name="email" value="<%= clientData ? clientData.email : '' %>">
       </div>
       <div class="form-group full">
+        <label>Additional emails</label>
+        <div id="additional-emails">
+          <% const addEmails = (clientData && clientData.additional_emails) || []; %>
+          <% for (const ae of addEmails) { %>
+          <div class="additional-email-row" style="display:flex;gap:0.5rem;margin-bottom:0.25rem">
+            <input type="email" name="additional_emails[]" value="<%= ae %>" style="flex:1">
+            <button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="padding:0.25rem 0.5rem">&times;</button>
+          </div>
+          <% } %>
+        </div>
+        <button type="button" class="btn-secondary" onclick="addEmailField()" style="margin-top:0.25rem;padding:0.25rem 0.75rem">+ Add email</button>
+      </div>
+      <script>
+      function addEmailField() {
+        const row = document.createElement('div');
+        row.className = 'additional-email-row';
+        row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.25rem';
+        row.innerHTML = '<input type="email" name="additional_emails[]" style="flex:1">'
+          + '<button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="padding:0.25rem 0.5rem">&times;</button>';
+        document.getElementById('additional-emails').appendChild(row);
+        row.querySelector('input').focus();
+      }
+      </script>
+      <div class="form-group full">
         <label for="address_line1">Address line 1</label>
         <input type="text" id="address_line1" name="address_line1" value="<%= clientData ? clientData.address_line1 : '' %>">
       </div>
@@ -65,6 +89,15 @@
       <div class="form-group">
         <label for="payment_terms_days">Payment terms (days)</label>
         <input type="number" id="payment_terms_days" name="payment_terms_days" value="<%= clientData ? clientData.payment_terms_days : '30' %>">
+      </div>
+      <div class="form-group">
+        <label for="default_bank_account_id">Default bank account</label>
+        <select id="default_bank_account_id" name="default_bank_account_id">
+          <option value="">Use system default</option>
+          <% for (const ba of bankAccounts) { %>
+            <option value="<%= ba.id %>" <%= clientData && clientData.default_bank_account_id === ba.id ? 'selected' : '' %>><%= ba.label %></option>
+          <% } %>
+        </select>
       </div>
       <div class="form-group full">
         <label for="notes">Notes</label>

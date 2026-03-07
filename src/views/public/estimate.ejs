@@ -48,6 +48,13 @@
         <% if (estimate.valid_until) { %>
           <div class="inv-date-row"><span>Valid until:</span><span><%= new Date(estimate.valid_until).toISOString().slice(0,10) %></span></div>
         <% } %>
+        <% if (estimate.reference) { %>
+          <% for (const ref of estimate.reference.split('\n').filter(r => r.trim())) { %>
+            <div class="inv-date-row"><span>Reference</span><span><%= ref.trim() %></span></div>
+          <% } %>
+        <% } %>
+        <div class="inv-separator-short"></div>
+        <div class="inv-date-row inv-amount-due"><span>Total (<%= estimate.currency %>)</span><span><%= fmt(estimate.total) %></span></div>
       </div>
     </div>
 
@@ -63,7 +70,7 @@
         <div class="inv-line-main">
           <span class="inv-col-desc"><%= line.description %></span>
           <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
-          <span class="inv-col-amount"><%= Number(line.line_total).toFixed(2) %></span>
+          <span class="inv-col-amount"><%= fmt(line.line_total) %></span>
         </div>
         <% if (line.detail) { %>
           <div class="inv-line-detail"><%= line.detail %></div>
@@ -76,11 +83,11 @@
     <div class="inv-totals">
       <div class="inv-total-row">
         <span>Subtotal</span>
-        <span><%= Number(estimate.subtotal).toFixed(2) %></span>
+        <span><%= fmt(estimate.subtotal) %></span>
       </div>
       <div class="inv-total-row">
         <span><%= estimate.vat_label %> <%= Number(estimate.vat_rate) %>%</span>
-        <span><%= Number(estimate.vat_amount).toFixed(2) %></span>
+        <span><%= fmt(estimate.vat_amount) %></span>
       </div>
       <% if (estimate.vat_note) { %>
         <div class="inv-vat-note"><%= estimate.vat_note %></div>
@@ -88,7 +95,7 @@
       <div class="inv-separator-short"></div>
       <div class="inv-total-row inv-grand-total">
         <span>Total</span>
-        <span><%= Number(estimate.total).toFixed(2) %> <%= estimate.currency %></span>
+        <span><%= fmt(estimate.total) %> <%= estimate.currency %></span>
       </div>
     </div>
 

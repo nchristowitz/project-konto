@@ -28,20 +28,20 @@
       <thead>
         <tr>
           <th style="width:32px"><input type="checkbox" id="select-all"></th>
-          <th>Name</th>
-          <th>Email</th>
-          <th class="text-right">Revenue</th>
-          <th class="text-right">Outstanding</th>
+          <th data-sort="text">Name</th>
+          <th data-sort="text">Email</th>
+          <th class="text-right" data-sort="number">Revenue</th>
+          <th class="text-right" data-sort="number">Outstanding</th>
         </tr>
       </thead>
       <tbody>
         <% for (const client of clients) { %>
           <tr>
             <td><input type="checkbox" name="client_ids" value="<%= client.id %>" class="client-check"></td>
-            <td><a href="/clients/<%= client.id %>"><%= client.name %></a></td>
-            <td><%= client.email || '' %></td>
-            <td class="text-right mono"><% if (Number(client.revenue) > 0) { %><%= Number(client.revenue).toFixed(2) %> <%= client.currency %><% } else { %>—<% } %></td>
-            <td class="text-right mono"><% if (Number(client.outstanding) > 0) { %><%= Number(client.outstanding).toFixed(2) %> <%= client.currency %><% } else { %>—<% } %></td>
+            <td data-value="<%= client.name %>"><a href="/clients/<%= client.id %>"><%= client.name %></a></td>
+            <td data-value="<%= client.email || '' %>"><%= client.email || '' %></td>
+            <td class="text-right" data-value="<%= Number(client.revenue) || 0 %>"><% if (Number(client.revenue) > 0) { %><%= fmt(client.revenue) %> <%= client.currency %><% } else { %>—<% } %></td>
+            <td class="text-right" data-value="<%= Number(client.outstanding) || 0 %>"><% if (Number(client.outstanding) > 0) { %><%= fmt(client.outstanding) %> <%= client.currency %><% } else { %>—<% } %></td>
           </tr>
         <% } %>
       </tbody>

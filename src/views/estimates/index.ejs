@@ -20,23 +20,23 @@
     <table>
       <thead>
         <tr>
-          <th>Number</th>
-          <th>Client</th>
-          <th>Date</th>
-          <th>Valid until</th>
-          <th class="text-right">Total</th>
-          <th class="text-right">Status</th>
+          <th data-sort="text">Number</th>
+          <th data-sort="text">Client</th>
+          <th data-sort="date">Date</th>
+          <th data-sort="date">Valid until</th>
+          <th class="text-right" data-sort="number">Total</th>
+          <th class="text-right" data-sort="status">Status</th>
         </tr>
       </thead>
       <tbody>
         <% for (const est of estimates) { %>
           <tr>
-            <td><a href="/estimates/<%= est.id %>" class="mono"><%= est.number %></a></td>
-            <td><%= est.client_name %></td>
-            <td><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
-            <td><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
-            <td class="text-right mono"><%= Number(est.total).toFixed(2) %> <%= est.currency %></td>
-            <td class="text-right"><span class="status status-<%= est.status %>"><%= est.status %></span></td>
+            <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>" ><%= est.number %></a></td>
+            <td data-value="<%= est.client_name %>"><%= est.client_name %></td>
+            <td data-value="<%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %>"><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
+            <td data-value="<%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %>"><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
+            <td class="text-right" data-value="<%= Number(est.total) %>"><%= fmt(est.total) %> <%= est.currency %></td>
+            <td class="text-right" data-value="<%= est.status %>"><span class="status status-<%= est.status %>"><%= est.status %></span></td>
           </tr>
         <% } %>
       </tbody>

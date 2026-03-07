@@ -20,56 +20,71 @@
   </div>
 </div>
 
-<div class="invoice-meta">
-  <% if (clientData.contact_person) { %>
-  <div class="meta-row">
-    <span class="meta-label">Contact</span>
-    <span><%= clientData.contact_person %></span>
+<div class="client-details">
+  <div class="client-details-col">
+    <% if (clientData.contact_person) { %>
+    <div class="meta-row">
+      <span class="meta-label">Contact</span>
+      <span><%= clientData.contact_person %></span>
+    </div>
+    <% } %>
+    <% if (clientData.email) { %>
+    <div class="meta-row">
+      <span class="meta-label">Email</span>
+      <span>
+        <a href="mailto:<%= clientData.email %>"><%= clientData.email %></a>
+        <% if (clientData.additional_emails && clientData.additional_emails.length) { %>
+          <% for (const ae of clientData.additional_emails) { %>
+            <br><a href="mailto:<%= ae %>"><%= ae %></a>
+          <% } %>
+        <% } %>
+      </span>
+    </div>
+    <% } %>
+    <% const addressParts = [clientData.address_line1, clientData.address_line2, [clientData.postal_code, clientData.city].filter(Boolean).join(' '), clientData.country_code].filter(Boolean); %>
+    <% if (addressParts.length) { %>
+    <div class="meta-row">
+      <span class="meta-label">Address</span>
+      <span><%= addressParts.join(', ') %></span>
+    </div>
+    <% } %>
   </div>
-  <% } %>
-  <% if (clientData.email) { %>
-  <div class="meta-row">
-    <span class="meta-label">Email</span>
-    <span><a href="mailto:<%= clientData.email %>"><%= clientData.email %></a></span>
-  </div>
-  <% } %>
-  <% const addressParts = [clientData.address_line1, clientData.address_line2, [clientData.postal_code, clientData.city].filter(Boolean).join(' '), clientData.country_code].filter(Boolean); %>
-  <% if (addressParts.length) { %>
-  <div class="meta-row">
-    <span class="meta-label">Address</span>
-    <span><%= addressParts.join(', ') %></span>
-  </div>
-  <% } %>
-  <% if (clientData.vat_number) { %>
-  <div class="meta-row">
-    <span class="meta-label">VAT number</span>
-    <span><%= clientData.vat_number %></span>
-  </div>
-  <% } %>
-  <div class="meta-row">
-    <span class="meta-label">Currency</span>
-    <span><%= clientData.currency %></span>
-  </div>
-  <div class="meta-row">
-    <span class="meta-label">Default VAT rate</span>
-    <span><%= Number(clientData.default_vat_rate) %>%</span>
-  </div>
-  <div class="meta-row">
-    <span class="meta-label">Payment terms</span>
-    <span><%= clientData.payment_terms_days %> days</span>
+  <div class="client-details-col">
+    <% if (clientData.vat_number) { %>
+    <div class="meta-row">
+      <span class="meta-label">VAT number</span>
+      <span><%= clientData.vat_number %></span>
+    </div>
+    <% } %>
+    <div class="meta-row">
+      <span class="meta-label">Currency</span>
+      <span><%= clientData.currency %></span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Default VAT</span>
+      <span><%= Number(clientData.default_vat_rate) %>%</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Payment terms</span>
+      <span><%= clientData.payment_terms_days %> days</span>
+    </div>
+    <div class="meta-row">
+      <span class="meta-label">Bank account</span>
+      <span><%= clientData.bank_account_label || 'System default' %></span>
+    </div>
   </div>
 </div>
 
 <div class="stats-grid">
   <div class="card stat-card">
     <h2 class="section-label">Financials</h2>
-    <div class="stat-row"><span>Revenue</span><span class="mono"><%= Number(stats.revenue).toFixed(2) %> <%= clientData.currency %></span></div>
-    <div class="stat-row"><span>Outstanding</span><span class="mono"><%= Number(stats.outstanding).toFixed(2) %> <%= clientData.currency %></span></div>
+    <div class="stat-row"><span>Revenue</span><span ><%= fmt(stats.revenue) %> <%= clientData.currency %></span></div>
+    <div class="stat-row"><span>Outstanding</span><span ><%= fmt(stats.outstanding) %> <%= clientData.currency %></span></div>
   </div>
   <div class="card stat-card">
     <h2 class="section-label">Activity</h2>
-    <div class="stat-row"><span>Invoices</span><span class="mono"><%= stats.invoiceCount %></span></div>
-    <div class="stat-row"><span>Estimates</span><span class="mono"><%= stats.estimateCount %></span></div>
+    <div class="stat-row"><span>Invoices</span><span ><%= stats.invoiceCount %></span></div>
+    <div class="stat-row"><span>Estimates</span><span ><%= stats.estimateCount %></span></div>
   </div>
 </div>
 
@@ -79,21 +94,21 @@
   <table>
     <thead>
       <tr>
-        <th>Number</th>
-        <th>Date</th>
-        <th>Due</th>
-        <th class="text-right">Total</th>
-        <th class="text-right">Status</th>
+        <th data-sort="text">Number</th>
+        <th data-sort="date">Date</th>
+        <th data-sort="date">Due</th>
+        <th class="text-right" data-sort="number">Total</th>
+        <th class="text-right" data-sort="status">Status</th>
       </tr>
     </thead>
     <tbody>
       <% for (const inv of invoices) { %>
         <tr>
-          <td><a href="/invoices/<%= inv.id %>"><%= inv.number %></a></td>
-          <td><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
-          <td><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-          <td class="text-right mono"><%= Number(inv.total).toFixed(2) %> <%= inv.currency %></td>
-          <td class="text-right"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+          <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>"><%= inv.number %></a></td>
+          <td data-value="<%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %>"><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
+          <td data-value="<%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %>"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
+          <td class="text-right" data-value="<%= Number(inv.total) %>"><%= fmt(inv.total) %> <%= inv.currency %></td>
+          <td class="text-right" data-value="<%= inv.status %>"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
         </tr>
       <% } %>
     </tbody>
@@ -107,21 +122,21 @@
   <table>
     <thead>
       <tr>
-        <th>Number</th>
-        <th>Date</th>
-        <th>Valid until</th>
-        <th class="text-right">Total</th>
-        <th class="text-right">Status</th>
+        <th data-sort="text">Number</th>
+        <th data-sort="date">Date</th>
+        <th data-sort="date">Valid until</th>
+        <th class="text-right" data-sort="number">Total</th>
+        <th class="text-right" data-sort="status">Status</th>
       </tr>
     </thead>
     <tbody>
       <% for (const est of estimates) { %>
         <tr>
-          <td><a href="/estimates/<%= est.id %>"><%= est.number %></a></td>
-          <td><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
-          <td><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
-          <td class="text-right mono"><%= Number(est.total).toFixed(2) %> <%= est.currency %></td>
-          <td class="text-right"><span class="status status-<%= est.status %>"><%= est.status %></span></td>
+          <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>"><%= est.number %></a></td>
+          <td data-value="<%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %>"><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
+          <td data-value="<%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %>"><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
+          <td class="text-right" data-value="<%= Number(est.total) %>"><%= fmt(est.total) %> <%= est.currency %></td>
+          <td class="text-right" data-value="<%= est.status %>"><span class="status status-<%= est.status %>"><%= est.status %></span></td>
         </tr>
       <% } %>
     </tbody>

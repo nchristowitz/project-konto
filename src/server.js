@@ -48,6 +48,8 @@ app.use(session({
 // Make session state available to all templates
 app.use((req, res, next) => {
   res.locals.authenticated = req.session && req.session.authenticated;
+  // Format number with thousands separator for display (e.g. 12305 → "12,305.00")
+  res.locals.fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   next();
 });
 

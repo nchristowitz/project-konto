@@ -51,6 +51,13 @@
         <% if (invoice.due_date) { %>
           <div class="inv-date-row"><span>Due:</span><span><%= new Date(invoice.due_date).toISOString().slice(0,10) %></span></div>
         <% } %>
+        <% if (invoice.reference) { %>
+          <% for (const ref of invoice.reference.split('\n').filter(r => r.trim())) { %>
+            <div class="inv-date-row"><span>Reference</span><span><%= ref.trim() %></span></div>
+          <% } %>
+        <% } %>
+        <div class="inv-separator-short"></div>
+        <div class="inv-date-row inv-amount-due"><span>Amount Due (<%= invoice.currency %>)</span><span><%= fmt(Number(invoice.total) - Number(invoice.amount_paid)) %></span></div>
       </div>
     </div>
 
@@ -66,7 +73,7 @@
         <div class="inv-line-main">
           <span class="inv-col-desc"><%= line.description %></span>
           <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
-          <span class="inv-col-amount"><%= Number(line.line_total).toFixed(2) %></span>
+          <span class="inv-col-amount"><%= fmt(line.line_total) %></span>
         </div>
         <% if (line.detail) { %>
           <div class="inv-line-detail"><%= line.detail %></div>
@@ -79,11 +86,11 @@
     <div class="inv-totals">
       <div class="inv-total-row">
         <span>Subtotal</span>
-        <span><%= Number(invoice.subtotal).toFixed(2) %></span>
+        <span><%= fmt(invoice.subtotal) %></span>
       </div>
       <div class="inv-total-row">
         <span><%= invoice.vat_label %> <%= Number(invoice.vat_rate) %>%</span>
-        <span><%= Number(invoice.vat_amount).toFixed(2) %></span>
+        <span><%= fmt(invoice.vat_amount) %></span>
       </div>
       <% if (invoice.vat_note) { %>
         <div class="inv-vat-note"><%= invoice.vat_note %></div>
@@ -91,16 +98,16 @@
       <div class="inv-separator-short"></div>
       <div class="inv-total-row inv-grand-total">
         <span>Total</span>
-        <span><%= Number(invoice.total).toFixed(2) %> <%= invoice.currency %></span>
+        <span><%= fmt(invoice.total) %> <%= invoice.currency %></span>
       </div>
       <% if (Number(invoice.amount_paid) > 0) { %>
         <div class="inv-total-row">
           <span>Paid</span>
-          <span><%= Number(invoice.amount_paid).toFixed(2) %></span>
+          <span><%= fmt(invoice.amount_paid) %></span>
         </div>
         <div class="inv-total-row inv-grand-total">
           <span>Balance</span>
-          <span><%= (Number(invoice.total) - Number(invoice.amount_paid)).toFixed(2) %> <%= invoice.currency %></span>
+          <span><%= fmt(Number(invoice.total) - Number(invoice.amount_paid)) %> <%= invoice.currency %></span>
         </div>
       <% } %>
     </div>

@@ -7,6 +7,7 @@ const { getNextInvoiceNumber, decrementIfLast } = require('../services/invoiceNu
 const archiver = require('archiver');
 const { sendInvoiceEmail, sendReminderEmail } = require('../services/email');
 const { generateEInvoice } = require('../services/einvoice');
+const { buildBankAccountSnapshot } = require('../services/bankAccount');
 
 const router = Router();
 
@@ -39,12 +40,15 @@ router.get('/', async (req, res) => {
 // GET /invoices/new
 router.get('/new', async (req, res) => {
   const { rows: clients } = await pool.query(
-    'SELECT * FROM clients WHERE archived = FALSE ORDER BY name'
+    'SELECT c.*, c.default_bank_account_id FROM clients c WHERE c.archived = FALSE ORDER BY c.name'
   );
   const { rows: settingsRows } = await pool.query(
     'SELECT * FROM settings WHERE id = 1'
   );
   const settings = settingsRows[0];
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT * FROM bank_accounts ORDER BY is_default DESC, label'
+  );
 
   // Pre-fill from client if specified
   let selectedClient = null;
@@ -58,6 +62,7 @@ router.get('/new', async (req, res) => {
     clients,
     settings,
     selectedClient,
+    bankAccounts,
   });
 });
 
@@ -71,6 +76,7 @@ router.post('/', async (req, res) => {
       client_id, currency, issue_date, due_date,
       vat_rate, vat_label, vat_note, reverse_charge,
       payment_details, notes, internal_notes,
+      bank_account_id, reference,
       descriptions = [], details = [], quantities = [],
       unit_codes = [], unit_prices = [],
     } = req.body;
@@ -86,6 +92,7 @@ router.post('/', async (req, res) => {
       name: clientData.name,
       contact_person: clientData.contact_person,
       email: clientData.email,
+      additional_emails: clientData.additional_emails || [],
       address_line1: clientData.address_line1,
       address_line2: clientData.address_line2,
       city: clientData.city,
@@ -93,6 +100,16 @@ router.post('/', async (req, res) => {
       country_code: clientData.country_code,
       vat_number: clientData.vat_number,
     };
+
+    // Bank account snapshot
+    let bankAccountSnapshot = null;
+    const baId = bank_account_id ? parseInt(bank_account_id, 10) : null;
+    if (baId) {
+      const { rows: baRows } = await client.query(
+        'SELECT * FROM bank_accounts WHERE id = $1', [baId]
+      );
+      if (baRows.length) bankAccountSnapshot = buildBankAccountSnapshot(baRows[0]);
+    }
 
     // Calculate totals
     const lineItems = [];
@@ -136,8 +153,9 @@ router.post('/', async (req, res) => {
         issue_date, due_date, currency,
         vat_rate, vat_label, vat_note, reverse_charge,
         subtotal, vat_amount, total,
-        view_token, payment_details, notes, internal_notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        view_token, payment_details, notes, internal_notes,
+        bank_account_id, bank_account_snapshot, reference
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
       RETURNING id
     `, [
       number, client_id, JSON.stringify(clientSnapshot),
@@ -145,6 +163,8 @@ router.post('/', async (req, res) => {
       vatRate, vat_label || 'VAT', vat_note || null, isReverseCharge,
       subtotal, vatAmount, total,
       viewToken, payment_details || null, notes || null, internal_notes || null,
+      baId, bankAccountSnapshot ? JSON.stringify(bankAccountSnapshot) : null,
+      reference || null,
     ]);
 
     const invoiceId = invoiceRows[0].id;
@@ -270,10 +290,13 @@ router.get('/:id/edit', async (req, res) => {
     [invoice.id]
   );
   const { rows: clients } = await pool.query(
-    'SELECT * FROM clients WHERE archived = FALSE ORDER BY name'
+    'SELECT c.*, c.default_bank_account_id FROM clients c WHERE c.archived = FALSE ORDER BY c.name'
   );
   const { rows: settingsRows } = await pool.query(
     'SELECT * FROM settings WHERE id = 1'
+  );
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT * FROM bank_accounts ORDER BY is_default DESC, label'
   );
 
   res.render('invoices/form', {
@@ -282,6 +305,7 @@ router.get('/:id/edit', async (req, res) => {
     clients,
     settings: settingsRows[0],
     selectedClient: null,
+    bankAccounts,
   });
 });
 
@@ -301,6 +325,7 @@ router.post('/:id', async (req, res) => {
       client_id, currency, issue_date, due_date,
       vat_rate, vat_label, vat_note, reverse_charge,
       payment_details, notes, internal_notes,
+      bank_account_id, reference,
       descriptions = [], details = [], quantities = [],
       unit_codes = [], unit_prices = [],
     } = req.body;
@@ -314,6 +339,7 @@ router.post('/:id', async (req, res) => {
       name: clientData.name,
       contact_person: clientData.contact_person,
       email: clientData.email,
+      additional_emails: clientData.additional_emails || [],
       address_line1: clientData.address_line1,
       address_line2: clientData.address_line2,
       city: clientData.city,
@@ -321,6 +347,16 @@ router.post('/:id', async (req, res) => {
       country_code: clientData.country_code,
       vat_number: clientData.vat_number,
     };
+
+    // Bank account snapshot
+    let bankAccountSnapshot = null;
+    const baId = bank_account_id ? parseInt(bank_account_id, 10) : null;
+    if (baId) {
+      const { rows: baRows } = await client.query(
+        'SELECT * FROM bank_accounts WHERE id = $1', [baId]
+      );
+      if (baRows.length) bankAccountSnapshot = buildBankAccountSnapshot(baRows[0]);
+    }
 
     // Calculate totals
     const lineItems = [];
@@ -361,14 +397,18 @@ router.post('/:id', async (req, res) => {
         vat_rate = $6, vat_label = $7, vat_note = $8, reverse_charge = $9,
         subtotal = $10, vat_amount = $11, total = $12,
         payment_details = $13, notes = $14, internal_notes = $15,
+        bank_account_id = $16, bank_account_snapshot = $17,
+        reference = $18,
         updated_at = NOW()
-      WHERE id = $16
+      WHERE id = $19
     `, [
       client_id, JSON.stringify(clientSnapshot),
       issue_date, due_date || null, currency || 'EUR',
       vatRate, vat_label || 'VAT', vat_note || null, isReverseCharge,
       subtotal, vatAmount, total,
       payment_details || null, notes || null, internal_notes || null,
+      baId, bankAccountSnapshot ? JSON.stringify(bankAccountSnapshot) : null,
+      reference || null,
       req.params.id,
     ]);
 

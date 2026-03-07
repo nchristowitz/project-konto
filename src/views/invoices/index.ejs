@@ -26,24 +26,24 @@
       <thead>
         <tr>
           <th style="width:32px"><input type="checkbox" id="select-all"></th>
-          <th>Number</th>
-          <th>Client</th>
-          <th>Date</th>
-          <th>Due</th>
-          <th class="text-right">Total</th>
-          <th class="text-right">Status</th>
+          <th data-sort="text">Number</th>
+          <th data-sort="text">Client</th>
+          <th data-sort="date">Date</th>
+          <th data-sort="date">Due</th>
+          <th class="text-right" data-sort="number">Total</th>
+          <th class="text-right" data-sort="status">Status</th>
         </tr>
       </thead>
       <tbody>
         <% for (const inv of invoices) { %>
           <tr>
             <td><input type="checkbox" name="invoice_ids" value="<%= inv.id %>" class="inv-check"></td>
-            <td><a href="/invoices/<%= inv.id %>" class="mono"><%= inv.number %></a></td>
-            <td><%= inv.client_name %></td>
-            <td><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
-            <td><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-            <td class="text-right mono"><%= Number(inv.total).toFixed(2) %> <%= inv.currency %></td>
-            <td class="text-right"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+            <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>" ><%= inv.number %></a></td>
+            <td data-value="<%= inv.client_name %>"><%= inv.client_name %></td>
+            <td data-value="<%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %>"><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
+            <td data-value="<%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %>"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
+            <td class="text-right" data-value="<%= Number(inv.total) %>"><%= fmt(inv.total) %> <%= inv.currency %></td>
+            <td class="text-right" data-value="<%= inv.status %>"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
           </tr>
         <% } %>
       </tbody>
