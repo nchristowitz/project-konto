@@ -11,11 +11,16 @@ function parseAmount(str) {
   return parseFloat(str.replace(/[$€,]/g, '')) || 0;
 }
 
-// Parse DD.MM.YYYY → YYYY-MM-DD
+// Parse DD.MM.YYYY or MM/DD/YYYY → YYYY-MM-DD
 function parseDate(str) {
-  const m = str.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-  if (!m) return null;
-  return `${m[3]}-${m[2]}-${m[1]}`;
+  if (!str) return null;
+  // DD.MM.YYYY (European)
+  const eu = str.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+  if (eu) return `${eu[3]}-${eu[2]}-${eu[1]}`;
+  // MM/DD/YYYY (US)
+  const us = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (us) return `${us[3]}-${us[1]}-${us[2]}`;
+  return null;
 }
 
 function parsePdfText(text) {
@@ -79,10 +84,10 @@ function parsePdfText(text) {
 
     // Currency symbol pattern for $ or €
     const cur = '[\\$€]?';
-    // Format A: rate\tqty\ttotal on one line (e.g. "$115.00 \t90 \t$10,350.00")
-    const fmtA = new RegExp(`^${cur}([\\d,]+\\.?\\d*)\\s*\\t\\s*(\\d+\\.?\\d*)\\s*\\t\\s*${cur}([\\d,]+\\.?\\d*)$`);
-    // Format B: qty\ttotal only (e.g. "1 \t€825.00") — rate was on a prior line
-    const fmtB = new RegExp(`^(\\d+\\.?\\d*)\\s*\\t\\s*${cur}([\\d,]+\\.?\\d*)$`);
+    // Format A: rate, qty, total on one line (separated by tabs or 2+ spaces)
+    const fmtA = new RegExp(`^${cur}([\\d,]+\\.?\\d*)\\s{2,}(\\d+\\.?\\d*)\\s{2,}${cur}([\\d,]+\\.?\\d*)$`);
+    // Format B: qty, total only (rate was on a prior line)
+    const fmtB = new RegExp(`^(\\d+\\.?\\d*)\\s{2,}${cur}([\\d,]+\\.?\\d*)$`);
     // Standalone rate line (e.g. "€825.00" or "$115.00")
     const rateLine = new RegExp(`^${cur}([\\d,]+\\.?\\d*)$`);
 
@@ -187,7 +192,7 @@ function parsePdfText(text) {
     notes,
     lineItems: lineItems.map((item, i) => ({
       description: item.description,
-      detail: item.detail_lines.length ? item.detail_lines.join('\n') : null,
+      detail: item.detail_lines.length ? item.detail_lines.join(' ') : null,
       quantity: item.quantity,
       unit_price: item.unit_price,
       line_total: item.line_total,
@@ -269,17 +274,26 @@ async function importInvoices(inputDir) {
 
     // Match client: try each line from the client block against DB client names
     // and contact_person fields (Freshbooks puts person name first, company second)
+    function normalize(s) {
+      return s.toUpperCase().replace(/[\u2018\u2019\u201C\u201D]/g, "'").replace(/[,.]*/g, '').replace(/\b(GMBH|UG|AG|LTD|LLC|INC|CORP|HAFTUNGSBESCHR.NKT)\b/g, '').replace(/\s+/g, ' ').trim();
+    }
     let clientRow = null;
     for (const blockLine of parsed.clientBlockLines) {
       const search = blockLine.toUpperCase();
       // Exact match on client name
       clientRow = clientsByName.get(search);
       if (clientRow) break;
-      // Match on contact_person or partial name match
+      // Match on contact_person, partial name, or normalized name match
+      const searchNorm = normalize(blockLine);
       for (const c of allClients) {
         const cName = c.name.toUpperCase();
         const cContact = (c.contact_person || '').toUpperCase();
         if (cContact === search || cName.includes(search) || search.includes(cName)) {
+          clientRow = c;
+          break;
+        }
+        // Fuzzy match: strip legal suffixes and compare
+        if (searchNorm && normalize(c.name) === searchNorm) {
           clientRow = c;
           break;
         }

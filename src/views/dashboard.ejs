@@ -1,9 +1,94 @@
 <%- include('header') %>
-<div class="page-header">
-  <h1>Dashboard</h1>
-  <div class="header-actions">
-    <a href="/estimates/new" class="btn-secondary">New estimate</a>
-    <a href="/invoices/new" class="btn">New invoice</a>
+<%
+  const now = new Date();
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+  const quarter = Math.ceil((now.getMonth() + 1) / 3);
+  const oneJan = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+
+  const hasMultiCurrencyEarned = earnedRows.length > 1 || (earnedRows.length === 1 && earnedRows[0].currency !== 'EUR');
+  const hasMultiCurrencyOutstanding = pendingRows.length + overdueRows.length > 1
+    || (pendingRows.length === 1 && pendingRows[0].currency !== 'EUR')
+    || (overdueRows.length === 1 && overdueRows[0].currency !== 'EUR');
+%>
+
+<div class="dash-header">
+  <div>
+    <span class="section-label">Dashboard</span>
+    <h1>Invoices</h1>
+  </div>
+  <div class="dash-header-right">
+    <div class="dash-date">
+      <%= dateStr %><br>
+      Q<%= quarter %> / Week <%= week %>
+    </div>
+    <div class="header-actions">
+      <a href="/estimates/new" class="btn-secondary">New estimate</a>
+      <a href="/invoices/new" class="btn">New invoice</a>
+    </div>
+  </div>
+</div>
+
+<div class="dash-stats">
+  <div class="card">
+    <h2 class="section-label">Earned YTD</h2>
+    <div class="dash-big-number dash-earned"><%= fmt(earnedEUR) %> &euro;</div>
+    <% if (hasMultiCurrencyEarned) { %>
+      <div class="dash-currency-breakdown">
+        <% for (const r of earnedRows) { %><span><%= fmt(r.amount) %> <%= r.currency %></span><% } %>
+      </div>
+      <% if (rateDate) { %><div class="dash-rate-date">ECB rate <%= rateDate %></div><% } %>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 class="section-label">Outstanding</h2>
+    <div class="dash-big-number"><%= fmt(outstandingEUR) %> &euro;</div>
+    <div class="dash-outstanding-breakdown">
+      <% if (pendingEUR > 0) { %><span class="dash-pending"><%= fmt(pendingEUR) %> &euro; pending</span><% } %>
+      <% if (overdueEUR > 0) { %><span class="dash-overdue-text"><%= fmt(overdueEUR) %> &euro; overdue</span><% } %>
+    </div>
+    <% if (hasMultiCurrencyOutstanding) { %>
+      <div class="dash-currency-breakdown">
+        <% for (const r of pendingRows) { %><span><%= fmt(r.amount) %> <%= r.currency %> pending</span><% } %>
+        <% for (const r of overdueRows) { %><span><%= fmt(r.amount) %> <%= r.currency %> overdue</span><% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2 class="section-label">Year Progress</h2>
+    <div class="dash-progress-row">
+      <div>
+        <div class="dash-big-number"><%= yearProgress %>%</div>
+        <% if (yearTarget > 0) { %>
+          <div class="dash-subtitle"><%= earnedProgress %>% of <%= fmt(yearTarget) %> &euro; target</div>
+        <% } else { %>
+          <div class="dash-subtitle">Q<%= quarter %> / Week <%= week %></div>
+        <% } %>
+      </div>
+      <svg width="72" height="72" viewBox="0 0 36 36">
+        <!-- Time progress (outer ring) -->
+        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--border)" stroke-width="2.5"/>
+        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"
+          stroke-dasharray="100.53" stroke-dashoffset="<%= 100.53 * (1 - yearProgress / 100) %>"
+          stroke-linecap="round" transform="rotate(-90 18 18)"/>
+        <% if (yearTarget > 0) { %>
+        <!-- Earnings progress (inner ring) -->
+        <circle cx="18" cy="18" r="12" fill="none" stroke="var(--border)" stroke-width="2.5"/>
+        <circle cx="18" cy="18" r="12" fill="none" stroke="var(--success)" stroke-width="2.5"
+          stroke-dasharray="75.4" stroke-dashoffset="<%= 75.4 * (1 - earnedProgress / 100) %>"
+          stroke-linecap="round" transform="rotate(-90 18 18)"/>
+        <% } %>
+      </svg>
+    </div>
+    <% if (yearTarget > 0) { %>
+      <div class="dash-ring-legend">
+        <span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--text-secondary)"></span>Time</span>
+        <span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--success)"></span>Earned</span>
+      </div>
+    <% } %>
   </div>
 </div>
 
@@ -14,7 +99,7 @@
     <tbody>
       <% for (const est of acceptedEstimates) { %>
         <tr>
-          <td><a href="/estimates/<%= est.id %>" ><%= est.number %></a></td>
+          <td><a href="/estimates/<%= est.id %>"><%= est.number %></a></td>
           <td><%= est.client_name %></td>
           <td class="text-right"><%= fmt(est.total) %> <%= est.currency %></td>
           <td class="text-right"><%= est.accepted_at ? new Date(est.accepted_at).toISOString().slice(0, 10) : '' %></td>
@@ -25,38 +110,53 @@
 </div>
 <% } %>
 
-<% if (overdue.length > 0) { %>
 <div class="card">
-  <h2 class="section-label overdue-label">Overdue</h2>
-  <table>
-    <tbody>
-      <% for (const inv of overdue) { %>
-        <tr>
-          <td><a href="/invoices/<%= inv.id %>" ><%= inv.number %></a></td>
-          <td><%= inv.client_name %></td>
-          <td class="text-right"><%= fmt(inv.total) %> <%= inv.currency %></td>
-          <td class="text-right"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-</div>
-<% } %>
-
-<div class="card">
-  <h2 class="section-label">Recent Invoices</h2>
-  <% if (recent.length === 0) { %>
+  <div class="dash-invoices-header">
+    <h2 class="section-label">Invoices</h2>
+    <div class="dash-tabs">
+      <button type="button" class="filter-tag active" data-filter="all">all <%= counts.total %></button>
+      <button type="button" class="filter-tag" data-filter="pending">pending <%= counts.pending %></button>
+      <button type="button" class="filter-tag" data-filter="overdue">overdue <%= counts.overdue %></button>
+      <button type="button" class="filter-tag" data-filter="paid">paid <%= counts.paid %></button>
+    </div>
+  </div>
+  <% if (invoices.length === 0) { %>
     <p class="empty">No invoices yet.</p>
   <% } else { %>
     <table>
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Client</th>
+          <th>Date</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Status</th>
+        </tr>
+      </thead>
       <tbody>
-        <% for (const inv of recent) { %>
-          <tr>
-            <td><a href="/invoices/<%= inv.id %>" ><%= inv.number %></a></td>
+        <% for (const inv of invoices) {
+          let filterCat = 'other';
+          if (inv.status === 'paid') filterCat = 'paid';
+          else if (inv.due_date && new Date(inv.due_date) < new Date()) filterCat = 'overdue';
+          else if (['sent', 'viewed', 'partially_paid'].includes(inv.status)) filterCat = 'pending';
+
+          let daysOverdue = 0;
+          if (filterCat === 'overdue' && inv.due_date) {
+            daysOverdue = Math.floor((new Date() - new Date(inv.due_date)) / 86400000);
+          }
+        %>
+          <tr data-filter-cat="<%= filterCat %>">
+            <td><a href="/invoices/<%= inv.id %>"><%= inv.number %></a></td>
             <td><%= inv.client_name %></td>
+            <td><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td class="text-right"><%= fmt(inv.total) %> <%= inv.currency %></td>
-            <td class="text-right"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
-            <td class="text-right"><span class="status status-<%= inv.status %>"><%= inv.status %></span></td>
+            <td class="text-right">
+              <% if (filterCat === 'overdue') { %>
+                <span class="status status-overdue"><%= daysOverdue %>d overdue</span>
+              <% } else { %>
+                <span class="status status-<%= inv.status %>"><%= inv.status %></span>
+              <% } %>
+            </td>
           </tr>
         <% } %>
       </tbody>
@@ -64,32 +164,20 @@
   <% } %>
 </div>
 
-<div class="stats-grid">
-  <div class="card stat-card">
-    <h2 class="section-label">This Month</h2>
-    <% if (monthStats.length === 0) { %>
-      <div class="stat-row"><span class="text-secondary">No invoices this month</span></div>
-    <% } else { %>
-      <% for (const s of monthStats) { %>
-        <% if (monthStats.length > 1) { %><div class="stat-currency-label"><%= s.currency %></div><% } %>
-        <div class="stat-row"><span>Invoiced</span><span ><%= fmt(s.invoiced) %> <%= s.currency %></span></div>
-        <div class="stat-row"><span>Received</span><span ><%= fmt(s.received) %> <%= s.currency %></span></div>
-        <div class="stat-row"><span>Pending</span><span ><%= fmt(s.pending) %> <%= s.currency %></span></div>
-      <% } %>
-    <% } %>
-  </div>
-  <div class="card stat-card">
-    <h2 class="section-label">This Year</h2>
-    <% if (yearStats.length === 0) { %>
-      <div class="stat-row"><span class="text-secondary">No invoices this year</span></div>
-    <% } else { %>
-      <% for (const s of yearStats) { %>
-        <% if (yearStats.length > 1) { %><div class="stat-currency-label"><%= s.currency %></div><% } %>
-        <div class="stat-row"><span>Invoiced</span><span ><%= fmt(s.invoiced) %> <%= s.currency %></span></div>
-        <div class="stat-row"><span>Received</span><span ><%= fmt(s.received) %> <%= s.currency %></span></div>
-        <div class="stat-row"><span>Pending</span><span ><%= fmt(s.pending) %> <%= s.currency %></span></div>
-      <% } %>
-    <% } %>
-  </div>
-</div>
+<script>
+(function() {
+  var tabs = document.querySelectorAll('.dash-tabs .filter-tag');
+  var rows = document.querySelectorAll('tbody tr[data-filter-cat]');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      var filter = tab.getAttribute('data-filter');
+      rows.forEach(function(row) {
+        row.style.display = (filter === 'all' || row.getAttribute('data-filter-cat') === filter) ? '' : 'none';
+      });
+    });
+  });
+})();
+</script>
 <%- include('footer') %>

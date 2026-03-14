@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
   query += ' ORDER BY i.created_at DESC';
 
   const { rows: invoices } = await pool.query(query, params);
-  res.render('invoices/index', { invoices, filters: { status, client_id } });
+  res.render('invoices/index', { invoices, filters: { status, client_id }, query: req.query });
 });
 
 // GET /invoices/new
@@ -250,6 +250,52 @@ router.post('/export', async (req, res) => {
   }
 
   await archive.finalize();
+});
+
+// POST /invoices/batch — batch cancel or delete
+router.post('/batch', async (req, res) => {
+  let ids = req.body.invoice_ids;
+  if (!ids) return res.redirect('/invoices');
+  if (!Array.isArray(ids)) ids = [ids];
+  const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (!numericIds.length) return res.redirect('/invoices');
+
+  const action = req.body.action;
+
+  if (action === 'cancel') {
+    await pool.query(`
+      UPDATE invoices SET status = 'cancelled', updated_at = NOW()
+      WHERE id = ANY($1) AND status NOT IN ('paid', 'cancelled')
+    `, [numericIds]);
+  } else if (action === 'delete') {
+    const { rows } = await pool.query(
+      `SELECT id, pdf_filename FROM invoices WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+      [numericIds]
+    );
+    for (const inv of rows) {
+      if (inv.pdf_filename) {
+        const filePath = path.join(process.cwd(), 'data', 'invoices', inv.pdf_filename);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+    }
+    if (rows.length) {
+      // Delete one at a time so FK-linked invoices are skipped, not crash the whole batch
+      let skipped = 0;
+      for (const inv of rows) {
+        try {
+          await pool.query(`DELETE FROM invoices WHERE id = $1`, [inv.id]);
+        } catch (err) {
+          if (err.code === '23503') { skipped++; continue; } // FK constraint — skip
+          throw err;
+        }
+      }
+      if (skipped > 0) {
+        return res.redirect('/invoices?error=Some invoices were skipped because they are linked to estimates');
+      }
+    }
+  }
+
+  res.redirect('/invoices');
 });
 
 // GET /invoices/:id
@@ -661,7 +707,14 @@ router.post('/:id/delete', async (req, res) => {
   await decrementIfLast('INV', fullYear, num);
 
   // Delete invoice (lines cascade)
-  await pool.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
+  try {
+    await pool.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.redirect(`/invoices/${req.params.id}?error=Cannot delete this invoice because it is linked to an estimate`);
+    }
+    throw err;
+  }
 
   res.redirect('/invoices');
 });

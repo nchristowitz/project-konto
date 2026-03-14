@@ -11,15 +11,29 @@
   <a href="/estimates?status=viewed" class="filter-tag <%= filters.status === 'viewed' ? 'active' : '' %>">Viewed</a>
   <a href="/estimates?status=accepted" class="filter-tag <%= filters.status === 'accepted' ? 'active' : '' %>">Accepted</a>
   <a href="/estimates?status=converted" class="filter-tag <%= filters.status === 'converted' ? 'active' : '' %>">Converted</a>
+  <a href="/estimates?status=cancelled" class="filter-tag <%= filters.status === 'cancelled' ? 'active' : '' %>">Cancelled</a>
 </div>
 
 <% if (estimates.length === 0) { %>
   <p class="empty">No estimates yet.</p>
 <% } else { %>
   <div class="card">
+    <div class="batch-bar">
+      <form method="POST" action="/estimates/batch" class="inline-form" id="cancel-form">
+        <span id="hidden-ids-cancel"></span>
+        <input type="hidden" name="action" value="cancel">
+        <button type="submit" class="btn-secondary btn-small" id="cancel-btn" disabled>Cancel</button>
+      </form>
+      <form method="POST" action="/estimates/batch" class="inline-form" id="delete-form">
+        <span id="hidden-ids-delete"></span>
+        <input type="hidden" name="action" value="delete">
+        <button type="submit" class="btn-danger btn-small" id="delete-btn" disabled>Delete</button>
+      </form>
+    </div>
     <table>
       <thead>
         <tr>
+          <th style="width:32px"><input type="checkbox" id="select-all"></th>
           <th data-sort="text">Number</th>
           <th data-sort="text">Client</th>
           <th data-sort="date">Date</th>
@@ -31,7 +45,8 @@
       <tbody>
         <% for (const est of estimates) { %>
           <tr>
-            <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>" ><%= est.number %></a></td>
+            <td><input type="checkbox" name="estimate_ids" value="<%= est.id %>" class="row-check"></td>
+            <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>"><%= est.number %></a></td>
             <td data-value="<%= est.client_name %>"><%= est.client_name %></td>
             <td data-value="<%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %>"><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td data-value="<%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %>"><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>
@@ -42,5 +57,35 @@
       </tbody>
     </table>
   </div>
+  <script>
+    (function() {
+      var all = document.getElementById('select-all');
+      var checks = document.querySelectorAll('.row-check');
+      var btns = [document.getElementById('cancel-btn'), document.getElementById('delete-btn')];
+      var hiddenContainers = {
+        cancel: document.getElementById('hidden-ids-cancel'),
+        delete: document.getElementById('hidden-ids-delete'),
+      };
+      function update() {
+        var selected = Array.from(checks).filter(function(c) { return c.checked; });
+        var any = selected.length > 0;
+        btns.forEach(function(b) { b.disabled = !any; });
+        all.checked = checks.length > 0 && selected.length === checks.length;
+        Object.keys(hiddenContainers).forEach(function(key) {
+          hiddenContainers[key].innerHTML = selected.map(function(c) {
+            return '<input type="hidden" name="estimate_ids" value="' + c.value + '">';
+          }).join('');
+        });
+      }
+      all.addEventListener('change', function() {
+        checks.forEach(function(c) { c.checked = all.checked; });
+        update();
+      });
+      checks.forEach(function(c) { c.addEventListener('change', update); });
+      document.getElementById('delete-form').addEventListener('submit', function(e) {
+        if (!confirm('Delete selected estimates? Only drafts and cancelled will be removed.')) e.preventDefault();
+      });
+    })();
+  </script>
 <% } %>
 <%- include('../footer') %>

@@ -4,8 +4,14 @@ const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 50;
 const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
+const RIGHT_COL = 176;              // width of the right column (dates, qty/rate/amount, totals)
+const RIGHT_X = PAGE_WIDTH - MARGIN - RIGHT_COL; // left edge of the right column
+const COL_QTY = RIGHT_X;
+const COL_RATE = RIGHT_X + 75;
+const COL_AMOUNT = PAGE_WIDTH - MARGIN; // right-aligned
+const DESC_MAX = RIGHT_X - MARGIN - 10; // description wraps before the right column
 const LINE_HEIGHT = 14;
-const FONT_SIZE = 9;
+const FONT_SIZE = 8;
 const TITLE_SIZE = 16;
 const HEADING_SIZE = 11;
 
@@ -32,8 +38,8 @@ function formatDate(d) {
 
 async function generateInvoicePdf({ invoice, lines, profile, client, documentTitle = 'INVOICE', dueDateLabel = 'Due:', statusWatermark = null }) {
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Courier);
-  const fontBold = await doc.embedFont(StandardFonts.CourierBold);
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;
@@ -69,21 +75,24 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
     y -= LINE_HEIGHT;
   }
 
-  // Wrap text into lines that fit within maxWidth
+  // Wrap text into lines that fit within maxWidth, preserving hard line breaks
   function wrapText(text, maxWidth, size, f) {
-    const words = text.split(/\s+/);
     const result = [];
-    let current = '';
-    for (const word of words) {
-      const test = current ? `${current} ${word}` : word;
-      if (f.widthOfTextAtSize(test, size) > maxWidth) {
-        if (current) result.push(current);
-        current = word;
-      } else {
-        current = test;
+    for (const paragraph of text.split('\n')) {
+      if (!paragraph.trim()) { result.push(''); continue; }
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      let current = '';
+      for (const word of words) {
+        const test = current ? `${current} ${word}` : word;
+        if (f.widthOfTextAtSize(test, size) > maxWidth) {
+          if (current) result.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
       }
+      if (current) result.push(current);
     }
-    if (current) result.push(current);
     return result;
   }
 
@@ -115,7 +124,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
 
   // --- Bill-to (left) + Dates (right) ---
   const billToX = MARGIN;
-  const datesX = MARGIN + CONTENT_WIDTH * 0.6;
+  const datesX = RIGHT_X;
   const savedY = y;
 
   // Bill-to
@@ -172,13 +181,14 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
 
   // Amount Due in header
   const amountDue = (Number(invoice.total) - Number(invoice.amount_paid || 0)).toFixed(2);
+  y -= 4;
   page.drawLine({
-    start: { x: datesX, y: y + 4 },
-    end: { x: PAGE_WIDTH - MARGIN, y: y + 4 },
+    start: { x: datesX, y },
+    end: { x: PAGE_WIDTH - MARGIN, y },
     thickness: 0.5,
     color: rgb(0.6, 0.6, 0.6),
   });
-  y -= 4;
+  y -= 10;
   const amountDueLabel = documentTitle === 'ESTIMATE' ? `Total (${invoice.currency})` : `Amount Due (${invoice.currency})`;
   drawText(amountDueLabel, datesX, HEADING_SIZE, true);
   drawTextRight(`${amountDue}`, HEADING_SIZE, true);
@@ -192,11 +202,10 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
 
   // --- Line items header ---
   const colDesc = MARGIN;
-  const colQty = MARGIN + CONTENT_WIDTH * 0.6;
-  const colAmount = PAGE_WIDTH - MARGIN;
 
   drawText('Description', colDesc, FONT_SIZE, true);
-  drawText('Qty', colQty, FONT_SIZE, true);
+  drawText('Qty', COL_QTY, FONT_SIZE, true);
+  drawText('Rate', COL_RATE, FONT_SIZE, true);
   drawTextRight('Amount', FONT_SIZE, true);
   y -= LINE_HEIGHT;
   y -= 4;
@@ -206,15 +215,17 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
     checkPage(LINE_HEIGHT * 2);
 
     // Description (with wrapping)
-    const descMaxWidth = CONTENT_WIDTH * 0.55;
-    const descLines = wrapText(line.description, descMaxWidth, FONT_SIZE, font);
+    const descLines = wrapText(line.description, DESC_MAX, FONT_SIZE, font);
     const firstDescLine = descLines[0] || '';
 
     drawText(firstDescLine, colDesc, FONT_SIZE, false);
 
     // Qty
     const qtyText = `${Number(line.quantity)} ${unitLabel(line.unit_code)}`;
-    drawText(qtyText, colQty, FONT_SIZE, false);
+    drawText(qtyText, COL_QTY, FONT_SIZE, false);
+
+    // Rate
+    drawText(fmt(line.unit_price), COL_RATE, FONT_SIZE, false);
 
     // Amount (right-aligned)
     drawTextRight(fmt(line.line_total), FONT_SIZE, false);
@@ -229,15 +240,43 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
 
     // Detail line
     if (line.detail) {
-      const detailLines = wrapText(line.detail, descMaxWidth, FONT_SIZE - 1, font);
+      const detailLineHeight = 11;
+      const detailLines = wrapText(line.detail, DESC_MAX, FONT_SIZE - 1, font);
       for (const dl of detailLines) {
-        checkPage(LINE_HEIGHT);
-        page.drawText(dl, { x: colDesc + 10, y, size: FONT_SIZE - 1, font, color: rgb(0.4, 0.4, 0.4) });
-        y -= LINE_HEIGHT;
+        checkPage(detailLineHeight);
+        page.drawText(dl, { x: colDesc, y, size: FONT_SIZE - 1, font, color: rgb(0.4, 0.4, 0.4) });
+        y -= detailLineHeight;
       }
     }
 
     y -= 2;
+  }
+
+  // --- Push totals to bottom of page to fill A4 height ---
+  // Estimate vertical space needed for everything below
+  let bottomHeight = LINE_HEIGHT * 2; // separator + gap
+  bottomHeight += LINE_HEIGHT * 2; // subtotal + vat rows
+  if (invoice.vat_note) {
+    bottomHeight += LINE_HEIGHT * wrapText(invoice.vat_note, RIGHT_COL, FONT_SIZE - 1, font).length;
+  }
+  bottomHeight += 14 + LINE_HEIGHT + 4; // separator + total row
+  if (Number(invoice.amount_paid) > 0) {
+    bottomHeight += LINE_HEIGHT * 2 + 4; // paid + balance
+  }
+  bottomHeight += LINE_HEIGHT; // gap after totals
+  if (invoice.payment_details) {
+    bottomHeight += LINE_HEIGHT * (invoice.payment_details.split('\n').length + 2);
+  }
+  if (invoice.notes) {
+    bottomHeight += LINE_HEIGHT * (wrapText(invoice.notes, CONTENT_WIDTH, FONT_SIZE, font).length + 1);
+  }
+  if (invoice.footer_text) {
+    bottomHeight += LINE_HEIGHT * (wrapText(invoice.footer_text, CONTENT_WIDTH, FONT_SIZE - 1, font).length + 1);
+  }
+
+  const targetY = MARGIN + bottomHeight;
+  if (y > targetY) {
+    y = targetY;
   }
 
   // --- Separator ---
@@ -245,7 +284,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
   drawLine();
 
   // --- Totals ---
-  const totalsLabelX = MARGIN + CONTENT_WIDTH * 0.55;
+  const totalsLabelX = datesX;
 
   checkPage(LINE_HEIGHT * 5);
   drawText('Subtotal', totalsLabelX, FONT_SIZE, false);
@@ -258,7 +297,7 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
   y -= LINE_HEIGHT;
 
   if (invoice.vat_note) {
-    const noteLines = wrapText(invoice.vat_note, CONTENT_WIDTH * 0.4, FONT_SIZE - 1, font);
+    const noteLines = wrapText(invoice.vat_note, RIGHT_COL, FONT_SIZE - 1, font);
     for (const nl of noteLines) {
       checkPage(LINE_HEIGHT);
       page.drawText(nl, { x: totalsLabelX, y, size: FONT_SIZE - 1, font, color: rgb(0.4, 0.4, 0.4) });
@@ -267,13 +306,14 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
   }
 
   // Short separator above total
+  y -= 4;
   page.drawLine({
-    start: { x: totalsLabelX, y: y + 4 },
-    end: { x: PAGE_WIDTH - MARGIN, y: y + 4 },
+    start: { x: totalsLabelX, y },
+    end: { x: PAGE_WIDTH - MARGIN, y },
     thickness: 0.5,
     color: rgb(0.6, 0.6, 0.6),
   });
-  y -= 4;
+  y -= 10;
 
   drawText('Total', totalsLabelX, HEADING_SIZE, true);
   drawTextRight(`${fmt(invoice.total)} ${invoice.currency}`, HEADING_SIZE, true);

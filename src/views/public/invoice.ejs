@@ -61,25 +61,29 @@
       </div>
     </div>
 
-    <div class="inv-line-header">
-      <span class="inv-col-desc">Description</span>
-      <span class="inv-col-qty">Qty</span>
-      <span class="inv-col-amount">Amount</span>
-    </div>
-    <div class="inv-separator"></div>
-
-    <% for (const line of lines) { %>
-      <div class="inv-line">
-        <div class="inv-line-main">
-          <span class="inv-col-desc"><%= line.description %></span>
-          <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
-          <span class="inv-col-amount"><%= fmt(line.line_total) %></span>
-        </div>
-        <% if (line.detail) { %>
-          <div class="inv-line-detail"><%= line.detail %></div>
-        <% } %>
+    <div class="inv-lines-section">
+      <div class="inv-line-header">
+        <span class="inv-col-desc">Description</span>
+        <span class="inv-col-qty">Qty</span>
+        <span class="inv-col-rate">Rate</span>
+        <span class="inv-col-amount">Amount</span>
       </div>
-    <% } %>
+      <div class="inv-separator"></div>
+
+      <% for (const line of lines) { %>
+        <div class="inv-line">
+          <div class="inv-line-main">
+            <span class="inv-col-desc"><%= line.description %></span>
+            <span class="inv-col-qty"><%= Number(line.quantity) %> <%= ({HUR:'hrs',DAY:'days',MON:'months',EA:'ea',C62:'units'})[line.unit_code] || line.unit_code %></span>
+            <span class="inv-col-rate"><%= fmt(line.unit_price) %></span>
+            <span class="inv-col-amount"><%= fmt(line.line_total) %></span>
+          </div>
+          <% if (line.detail) { %>
+            <div class="inv-line-detail"><%= line.detail %></div>
+          <% } %>
+        </div>
+      <% } %>
+    </div>
 
     <div class="inv-separator"></div>
 
@@ -115,13 +119,13 @@
     <% if (invoice.payment_details) { %>
       <div class="inv-section">
         <div class="inv-label">Payment details:</div>
-        <pre class="inv-pre"><%= invoice.payment_details %></pre>
+        <div class="inv-pre"><%= invoice.payment_details %></div>
       </div>
     <% } %>
 
     <% if (invoice.notes) { %>
       <div class="inv-section">
-        <p><%= invoice.notes %></p>
+        <div class="inv-pre"><%= invoice.notes %></div>
       </div>
     <% } %>
 

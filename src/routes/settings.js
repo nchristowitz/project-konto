@@ -168,6 +168,107 @@ router.get('/api/bank-accounts', async (req, res) => {
   res.json(rows);
 });
 
+// POST /settings/targets — save revenue targets
+router.post('/targets', async (req, res) => {
+  const { rows } = await pool.query('SELECT revenue_targets FROM settings WHERE id = 1');
+  const targets = rows[0]?.revenue_targets || {};
+
+  // Update targets from form fields (target_2026, target_2027, etc.)
+  for (const [key, value] of Object.entries(req.body)) {
+    if (key.startsWith('target_')) {
+      const year = key.replace('target_', '');
+      if (value && parseFloat(value) > 0) {
+        targets[year] = parseFloat(value);
+      } else {
+        delete targets[year];
+      }
+    }
+  }
+
+  await pool.query(
+    'UPDATE settings SET revenue_targets = $1 WHERE id = 1',
+    [JSON.stringify(targets)]
+  );
+  res.redirect('/settings');
+});
+
+// POST /settings/reset — data reset
+router.post('/reset', async (req, res) => {
+  const action = req.body.action;
+  const fs = require('fs');
+  const path = require('path');
+
+  function clearDir(dir) {
+    if (!fs.existsSync(dir)) return;
+    for (const f of fs.readdirSync(dir)) {
+      const p = path.join(dir, f);
+      if (fs.statSync(p).isDirectory()) {
+        clearDir(p);
+        fs.rmdirSync(p);
+      } else {
+        fs.unlinkSync(p);
+      }
+    }
+  }
+
+  if (action === 'all') {
+    await pool.query(`
+      DELETE FROM email_log;
+      DELETE FROM invoice_views;
+      DELETE FROM estimate_views;
+      DELETE FROM payments;
+      DELETE FROM invoice_lines;
+      DELETE FROM estimate_lines;
+      DELETE FROM estimates;
+      DELETE FROM invoices;
+      DELETE FROM clients;
+      DELETE FROM invoice_sequences;
+    `);
+    clearDir(path.join(process.cwd(), 'data', 'invoices'));
+    clearDir(path.join(process.cwd(), 'data', 'estimates'));
+  } else if (action === 'invoices') {
+    // Clear estimate FK references first
+    await pool.query(`UPDATE estimates SET converted_invoice_id = NULL WHERE converted_invoice_id IS NOT NULL`);
+    await pool.query(`
+      DELETE FROM email_log;
+      DELETE FROM invoice_views;
+      DELETE FROM payments;
+      DELETE FROM invoice_lines;
+      DELETE FROM invoices;
+      DELETE FROM invoice_sequences WHERE prefix = 'INV';
+    `);
+    clearDir(path.join(process.cwd(), 'data', 'invoices'));
+  } else if (action === 'estimates') {
+    await pool.query(`
+      UPDATE invoices SET estimate_id = NULL WHERE estimate_id IS NOT NULL;
+      DELETE FROM email_log WHERE estimate_id IS NOT NULL;
+      DELETE FROM estimate_views;
+      DELETE FROM estimate_lines;
+      DELETE FROM estimates;
+      DELETE FROM invoice_sequences WHERE prefix = 'EST';
+    `);
+    clearDir(path.join(process.cwd(), 'data', 'estimates'));
+  } else if (action === 'clients') {
+    // Clients FK'd by invoices and estimates — must clear those first
+    await pool.query(`
+      DELETE FROM email_log;
+      DELETE FROM invoice_views;
+      DELETE FROM estimate_views;
+      DELETE FROM payments;
+      DELETE FROM invoice_lines;
+      DELETE FROM estimate_lines;
+      DELETE FROM estimates;
+      DELETE FROM invoices;
+      DELETE FROM clients;
+      DELETE FROM invoice_sequences;
+    `);
+    clearDir(path.join(process.cwd(), 'data', 'invoices'));
+    clearDir(path.join(process.cwd(), 'data', 'estimates'));
+  }
+
+  res.redirect('/settings');
+});
+
 // POST /settings
 router.post('/', async (req, res) => {
   const {

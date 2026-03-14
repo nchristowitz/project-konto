@@ -1,4 +1,7 @@
 <%- include('../header') %>
+<% if (query.error) { %>
+  <div class="notice notice-error"><%= query.error %></div>
+<% } %>
 <div class="page-header">
   <h1>Invoices</h1>
   <a href="/invoices/new" class="btn">New invoice</a>
@@ -17,10 +20,22 @@
 <% if (invoices.length === 0) { %>
   <p class="empty">No invoices yet.</p>
 <% } else { %>
-  <form method="POST" action="/invoices/export" id="export-form">
   <div class="card">
-    <div class="export-bar">
-      <button type="submit" class="btn-secondary btn-small" id="export-btn" disabled>Export selected</button>
+    <div class="batch-bar">
+      <form method="POST" action="/invoices/export" class="inline-form" id="export-form">
+        <span id="hidden-ids-export"></span>
+        <button type="submit" class="btn-secondary btn-small" id="export-btn" disabled>Export</button>
+      </form>
+      <form method="POST" action="/invoices/batch" class="inline-form" id="cancel-form">
+        <span id="hidden-ids-cancel"></span>
+        <input type="hidden" name="action" value="cancel">
+        <button type="submit" class="btn-secondary btn-small" id="cancel-btn" disabled>Cancel</button>
+      </form>
+      <form method="POST" action="/invoices/batch" class="inline-form" id="delete-form">
+        <span id="hidden-ids-delete"></span>
+        <input type="hidden" name="action" value="delete">
+        <button type="submit" class="btn-danger btn-small" id="delete-btn" disabled>Delete</button>
+      </form>
     </div>
     <table>
       <thead>
@@ -37,8 +52,8 @@
       <tbody>
         <% for (const inv of invoices) { %>
           <tr>
-            <td><input type="checkbox" name="invoice_ids" value="<%= inv.id %>" class="inv-check"></td>
-            <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>" ><%= inv.number %></a></td>
+            <td><input type="checkbox" name="invoice_ids" value="<%= inv.id %>" class="row-check"></td>
+            <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>"><%= inv.number %></a></td>
             <td data-value="<%= inv.client_name %>"><%= inv.client_name %></td>
             <td data-value="<%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %>"><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td data-value="<%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %>"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>
@@ -49,22 +64,36 @@
       </tbody>
     </table>
   </div>
-  </form>
   <script>
     (function() {
       var all = document.getElementById('select-all');
-      var checks = document.querySelectorAll('.inv-check');
-      var btn = document.getElementById('export-btn');
+      var checks = document.querySelectorAll('.row-check');
+      var btns = [document.getElementById('export-btn'), document.getElementById('cancel-btn'), document.getElementById('delete-btn')];
+      var hiddenContainers = {
+        export: document.getElementById('hidden-ids-export'),
+        cancel: document.getElementById('hidden-ids-cancel'),
+        delete: document.getElementById('hidden-ids-delete'),
+      };
       function update() {
-        var any = Array.from(checks).some(function(c) { return c.checked; });
-        btn.disabled = !any;
-        all.checked = Array.from(checks).every(function(c) { return c.checked; });
+        var selected = Array.from(checks).filter(function(c) { return c.checked; });
+        var any = selected.length > 0;
+        btns.forEach(function(b) { b.disabled = !any; });
+        all.checked = checks.length > 0 && selected.length === checks.length;
+        // Sync hidden inputs to each form
+        Object.keys(hiddenContainers).forEach(function(key) {
+          hiddenContainers[key].innerHTML = selected.map(function(c) {
+            return '<input type="hidden" name="invoice_ids" value="' + c.value + '">';
+          }).join('');
+        });
       }
       all.addEventListener('change', function() {
         checks.forEach(function(c) { c.checked = all.checked; });
         update();
       });
       checks.forEach(function(c) { c.addEventListener('change', update); });
+      document.getElementById('delete-form').addEventListener('submit', function(e) {
+        if (!confirm('Delete selected invoices? Only drafts and cancelled will be removed.')) e.preventDefault();
+      });
     })();
   </script>
 <% } %>

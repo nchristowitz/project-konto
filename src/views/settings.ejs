@@ -271,4 +271,47 @@
     <button type="submit">Save settings</button>
   </form>
 </div>
+
+<%
+  const targets = settings.revenue_targets || {};
+  const currentYear = new Date().getFullYear();
+  const targetYears = [currentYear, currentYear + 1];
+%>
+<div class="card">
+  <h2>Revenue Targets</h2>
+  <form method="POST" action="/settings/targets">
+    <div class="form-grid">
+      <% for (const y of targetYears) { %>
+        <div class="form-group">
+          <label for="target_<%= y %>"><%= y %> target (EUR)</label>
+          <input type="number" id="target_<%= y %>" name="target_<%= y %>" step="1" value="<%= targets[y] || '' %>" placeholder="e.g. 150000">
+        </div>
+      <% } %>
+    </div>
+    <button type="submit">Save targets</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Data Reset</h2>
+  <p class="text-secondary" style="margin-bottom: 16px">Permanently delete data. This cannot be undone.</p>
+  <div class="form-actions">
+    <form method="POST" action="/settings/reset" class="inline-form">
+      <input type="hidden" name="action" value="invoices">
+      <button type="submit" class="btn-danger" onclick="return confirm('Delete ALL invoices, payments, and email logs?')">Delete all invoices</button>
+    </form>
+    <form method="POST" action="/settings/reset" class="inline-form">
+      <input type="hidden" name="action" value="estimates">
+      <button type="submit" class="btn-danger" onclick="return confirm('Delete ALL estimates?')">Delete all estimates</button>
+    </form>
+    <form method="POST" action="/settings/reset" class="inline-form">
+      <input type="hidden" name="action" value="clients">
+      <button type="submit" class="btn-danger" onclick="return confirm('Delete ALL clients? This also deletes all invoices and estimates.')">Delete all clients</button>
+    </form>
+    <form method="POST" action="/settings/reset" class="inline-form">
+      <input type="hidden" name="action" value="all">
+      <button type="submit" class="btn-danger" onclick="return confirm('Delete EVERYTHING? All clients, invoices, estimates, and sequences will be wiped.')">Delete everything</button>
+    </form>
+  </div>
+</div>
 <%- include('footer') %>

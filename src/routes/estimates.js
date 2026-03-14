@@ -191,6 +191,43 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /estimates/batch — batch cancel or delete
+router.post('/batch', async (req, res) => {
+  let ids = req.body.estimate_ids;
+  if (!ids) return res.redirect('/estimates');
+  if (!Array.isArray(ids)) ids = [ids];
+  const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (!numericIds.length) return res.redirect('/estimates');
+
+  const action = req.body.action;
+
+  if (action === 'cancel') {
+    await pool.query(`
+      UPDATE estimates SET status = 'cancelled', updated_at = NOW()
+      WHERE id = ANY($1) AND status NOT IN ('accepted', 'converted', 'cancelled')
+    `, [numericIds]);
+  } else if (action === 'delete') {
+    const { rows } = await pool.query(
+      `SELECT id, pdf_filename FROM estimates WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+      [numericIds]
+    );
+    for (const est of rows) {
+      if (est.pdf_filename) {
+        const filePath = path.join(process.cwd(), 'data', 'estimates', est.pdf_filename);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+    }
+    if (rows.length) {
+      await pool.query(
+        `DELETE FROM estimates WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+        [numericIds]
+      );
+    }
+  }
+
+  res.redirect('/estimates');
+});
+
 // GET /estimates/:id
 router.get('/:id', async (req, res) => {
   const { rows: estimateRows } = await pool.query(
