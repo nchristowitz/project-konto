@@ -493,6 +493,7 @@ td a:hover {
   color: var(--text-secondary);
   font-size: 13px;
   margin-top: 2px;
+  max-width: 400px;
 }
 
 .remove-line {
@@ -804,10 +805,13 @@ td a:hover {
   line-height: 1.4;
   margin-top: 2px;
   padding-left: 0;
+  max-width: calc(100% - var(--right-col));
 }
 
 .inv-totals {
   margin-top: 16px;
+  margin-left: auto;
+  width: var(--right-col);
 }
 
 .inv-total-row {
@@ -816,13 +820,12 @@ td a:hover {
 }
 
 .inv-total-row span:first-child {
-  flex: 1;
-  text-align: right;
+  white-space: nowrap;
   padding-right: 16px;
 }
 
 .inv-total-row span:last-child {
-  flex: 0 0 var(--col-amount);
+  flex: 1;
   text-align: right;
 }
 

@@ -9,13 +9,14 @@ router.get('/', async (req, res) => {
   const year = now.getFullYear();
 
   // Earned YTD (amount received this year) by currency
+  // Use total for fully paid invoices, amount_paid for partial payments
   const { rows: earnedRows } = await pool.query(`
     SELECT currency,
-           COALESCE(SUM(amount_paid), 0) AS amount
+           COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE amount_paid END), 0) AS amount
     FROM invoices
     WHERE EXTRACT(YEAR FROM issue_date) = $1
       AND status != 'cancelled'
-      AND amount_paid > 0
+      AND (status = 'paid' OR amount_paid > 0)
     GROUP BY currency
     ORDER BY currency
   `, [year]);

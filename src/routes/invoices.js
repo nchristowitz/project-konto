@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
     query += ` AND i.client_id = $${params.length}`;
   }
 
-  query += ' ORDER BY i.created_at DESC';
+  query += ' ORDER BY i.issue_date DESC, i.number DESC';
 
   const { rows: invoices } = await pool.query(query, params);
   res.render('invoices/index', { invoices, filters: { status, client_id }, query: req.query });
