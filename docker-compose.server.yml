@@ -1,0 +1,75 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./dashboard:/srv/dashboard
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./website/__sapper__/export:/srv/website:ro
+
+  sendrec:
+    build: ./sendrec
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - garage
+    environment:
+      - DATABASE_URL=postgres://sendrec:${DB_PASSWORD}@postgres:5432/sendrec?sslmode=disable
+      - JWT_SECRET=${JWT_SECRET}
+      - S3_ENDPOINT=http://garage:3900
+      - S3_PUBLIC_ENDPOINT=https://storage.nicholaschristowitz.com
+      - S3_BUCKET=sendrec
+      - S3_ACCESS_KEY=${GARAGE_ACCESS_KEY}
+      - S3_SECRET_KEY=${GARAGE_SECRET_KEY}
+      - S3_REGION=garage
+      - BASE_URL=https://video.nicholaschristowitz.com
+      - MAX_VIDEOS_PER_MONTH=0
+      - BRANDING_ENABLED=true
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=sendrec
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=sendrec
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  garage:
+    image: dxflrs/garage:v2.2.0
+    container_name: garage
+    restart: unless-stopped
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+
+  konto:
+    build: ./konto
+    container_name: konto
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://konto:${KONTO_DB_PASSWORD}@postgres:5432/sendrec
+      - DB_SCHEMA=konto
+      - SESSION_SECRET=${KONTO_SESSION_SECRET}
+      - ADMIN_USERNAME=${KONTO_ADMIN_USERNAME:-nicholas}
+      - ADMIN_PASSWORD_HASH=${KONTO_ADMIN_PASSWORD_HASH}
+      - BASE_URL=https://money.nicholaschristowitz.com
+    volumes:
+      - konto-data:/app/data
+    depends_on:
+      - postgres
+
+volumes:
+  caddy_data:
+  caddy_config:
+  postgres_data:
+  garage-meta:
+  garage-data:
+  konto-data:
