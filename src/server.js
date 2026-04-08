@@ -15,6 +15,9 @@ const { startReminderCron } = require('./services/reminder');
 
 const app = express();
 
+// Trust first proxy (Caddy) so secure cookies work behind reverse proxy
+app.set('trust proxy', 1);
+
 // View engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
