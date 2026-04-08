@@ -59,7 +59,7 @@ services:
       - DB_SCHEMA=konto
       - SESSION_SECRET=${KONTO_SESSION_SECRET}
       - ADMIN_USERNAME=${KONTO_ADMIN_USERNAME:-nicholas}
-      - ADMIN_PASSWORD=${KONTO_ADMIN_PASSWORD}
+      - ADMIN_PASSWORD_HASH=${KONTO_ADMIN_PASSWORD_HASH}
       - BASE_URL=https://money.nicholaschristowitz.com
     volumes:
       - konto-data:/app/data
