@@ -419,6 +419,31 @@ async function importInvoices(inputDir) {
     }
   }
 
+  // Reconcile invoice_sequences so the next invoice created via the UI
+  // continues from max(imported)+1 per year, rather than colliding with
+  // an imported number. Mirrors migration 007 but runs after each import
+  // so a later re-import or manual SQL insert also leaves the sequence
+  // in a consistent state.
+  await pool.query(`
+    WITH parsed AS (
+      SELECT
+        'INV'::TEXT AS prefix,
+        2000 + CAST(SUBSTRING(number FROM 1 FOR 2) AS INTEGER) AS year,
+        CAST(SUBSTRING(number FROM 3) AS INTEGER) AS counter
+      FROM invoices
+      WHERE number ~ '^[0-9]{5,7}$'
+    ),
+    max_per_year AS (
+      SELECT prefix, year, MAX(counter) + 1 AS next_number
+      FROM parsed
+      GROUP BY prefix, year
+    )
+    INSERT INTO invoice_sequences (prefix, year, next_number)
+    SELECT prefix, year, next_number FROM max_per_year
+    ON CONFLICT (prefix, year) DO UPDATE
+    SET next_number = GREATEST(invoice_sequences.next_number, EXCLUDED.next_number)
+  `);
+
   console.log(`\nDone. ${imported} imported, ${skipped} skipped, ${errors} errors.`);
   await pool.end();
 }

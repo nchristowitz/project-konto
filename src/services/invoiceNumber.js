@@ -20,16 +20,25 @@ async function getNextInvoiceNumber(prefix = 'INV', issueDate, executor = pool) 
   if (!Number.isFinite(year)) throw new Error(`getNextInvoiceNumber: invalid issueDate ${issueDate}`);
   const yy = String(year).slice(-2);
 
+  // Sequence semantics: next_number = "the number to assign on the NEXT call".
+  // So we seed a new row at 2 (we're claiming 1 right now) and on conflict
+  // bump by 1 before returning old. `next_number - 1` in RETURNING gives the
+  // value just claimed in both paths. (Postgres' RETURNING in an upsert
+  // returns post-update values, so new=old+1 → new-1=old on conflict, and
+  // seeded 2 → 2-1=1 on insert.) Previously seeded at 1 which caused a
+  // collision: first call gave 1, row stayed at 1, second call tried 1 again.
   const result = await executor.query(`
     INSERT INTO invoice_sequences (prefix, year, next_number)
-    VALUES ($1, $2, 1)
+    VALUES ($1, $2, 2)
     ON CONFLICT (prefix, year)
     DO UPDATE SET next_number = invoice_sequences.next_number + 1
     RETURNING next_number - 1 AS current_number
   `, [prefix, year]);
 
   const num = result.rows[0].current_number || 1;
-  return `${yy}${String(num).padStart(3, '0')}`;
+  // 4-digit counter to match the Freshbooks convention used on all imported
+  // history from 2024 onwards (e.g. 260001, 260002 ...). Gives us 9999/year.
+  return `${yy}${String(num).padStart(4, '0')}`;
 }
 
 async function decrementIfLast(prefix, year, number) {
