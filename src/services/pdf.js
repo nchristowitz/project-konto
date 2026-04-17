@@ -108,7 +108,11 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
   if (cityLine) {
     addressParts.push(cityLine + (profile.country_code ? `, ${profile.country_code}` : ''));
   }
+  // Both identifiers on the seller block — §14 UStG requires at least one
+  // (Steuernummer OR USt-IdNr.), but showing both is standard on German
+  // invoices and makes the document self-sufficient for a tax audit.
   if (profile.vat_number) addressParts.push(`VAT: ${profile.vat_number}`);
+  if (profile.tax_number) addressParts.push(`Tax No: ${profile.tax_number}`);
   if (profile.email) addressParts.push(profile.email);
 
   for (const line of addressParts) {

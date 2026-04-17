@@ -25,6 +25,7 @@
           <%= profile.postal_code %> <%= profile.city %><% if (profile.country_code) { %>, <%= profile.country_code %><% } %><br>
         <% } %>
         <% if (profile.vat_number) { %>VAT: <%= profile.vat_number %><br><% } %>
+        <% if (profile.tax_number) { %>Tax No: <%= profile.tax_number %><br><% } %>
         <% if (profile.email) { %><%= profile.email %><br><% } %>
       </div>
     </div>
