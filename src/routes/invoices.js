@@ -327,7 +327,9 @@ router.get('/:id/edit', async (req, res) => {
   if (!invoiceRows.length) return res.status(404).send('Invoice not found');
 
   const invoice = invoiceRows[0];
-  if (['cancelled', 'paid'].includes(invoice.status)) {
+  // Only drafts are editable. Sent invoices are immutable records under GoBD —
+  // corrections go through cancel + re-issue, not edit-in-place.
+  if (invoice.status !== 'draft') {
     return res.redirect(`/invoices/${invoice.id}`);
   }
 
@@ -365,7 +367,8 @@ router.post('/:id', async (req, res) => {
       'SELECT * FROM invoices WHERE id = $1', [req.params.id]
     );
     if (!existing.length) throw new Error('Invoice not found');
-    if (['cancelled', 'paid'].includes(existing[0].status)) throw new Error('Cancelled and paid invoices cannot be edited');
+    // Only drafts are editable — see GET /:id/edit for rationale.
+    if (existing[0].status !== 'draft') throw new Error('Only draft invoices can be edited. To correct a sent invoice, cancel it and issue a new one.');
 
     const {
       client_id, currency, issue_date, due_date,
