@@ -140,8 +140,9 @@ router.post('/', async (req, res) => {
     const vatAmount = isReverseCharge ? 0 : Math.round(subtotal * vatRate / 100 * 100) / 100;
     const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
-    // Generate estimate number and token
-    const seqNumber = await getNextInvoiceNumber('EST');
+    // Generate estimate number and token. Sequence increment runs inside
+    // the transaction so a failed INSERT rolls it back. Year from issue_date.
+    const seqNumber = await getNextInvoiceNumber('EST', issue_date, dbClient);
     const number = `E-${seqNumber}`;
     const viewToken = crypto.randomBytes(16).toString('hex');
 
@@ -514,10 +515,6 @@ router.post('/:id/convert', async (req, res) => {
       'SELECT * FROM estimate_lines WHERE estimate_id = $1 ORDER BY sort_order', [estimate.id]
     );
 
-    // Generate invoice number and token
-    const invoiceNumber = await getNextInvoiceNumber('INV');
-    const viewToken = crypto.randomBytes(16).toString('hex');
-
     // Calculate due date from client payment terms
     const { rows: clientRows } = await dbClient.query(
       'SELECT payment_terms_days FROM clients WHERE id = $1', [estimate.client_id]
@@ -526,6 +523,10 @@ router.post('/:id/convert', async (req, res) => {
     const issueDate = new Date();
     const dueDate = new Date(issueDate);
     dueDate.setDate(dueDate.getDate() + terms);
+
+    // Generate invoice number and token. Sequence increment is transaction-local.
+    const invoiceNumber = await getNextInvoiceNumber('INV', issueDate, dbClient);
+    const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Generate payment_details from bank account snapshot
     const paymentDetails = formatPaymentDetails(estimate.bank_account_snapshot);

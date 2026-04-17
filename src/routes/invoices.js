@@ -142,8 +142,11 @@ router.post('/', async (req, res) => {
     const vatAmount = isReverseCharge ? 0 : Math.round(subtotal * vatRate / 100 * 100) / 100;
     const total = Math.round((subtotal + vatAmount) * 100) / 100;
 
-    // Generate invoice number and token
-    const number = await getNextInvoiceNumber('INV');
+    // Generate invoice number and token.
+    // Pass the txn client so a failed INSERT rolls back the sequence increment
+    // (keeps numbering gapless for tax-audit purposes). Year is derived from
+    // issue_date, not wall clock, so a backdated invoice lands in the right year.
+    const number = await getNextInvoiceNumber('INV', issue_date, client);
     const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Insert invoice
