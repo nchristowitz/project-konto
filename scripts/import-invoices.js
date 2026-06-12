@@ -67,6 +67,28 @@ function parsePdfText(text) {
     notes = text.substring(notesIdx + 7).trim() || null;
   }
 
+  // Without a Terms heading the slice above swallows the rest of the document
+  // (line-item table, totals, "-- 1 of 2 --" page markers, page-2 content).
+  // Cut at the first line that can only come from the document body; genuine
+  // hand-written notes stay above it.
+  if (notes) {
+    const chrome = [
+      /^Date of Issue\s/m,
+      /^Due Date\s/m,
+      /^Description\s+Rate\s+Qty\s+Line Total/m,
+      /^Invoice Number$/m,
+      /^Subtotal$/m,
+      /^Amount Due \([A-Z]{3}\)/m,
+      /^-- \d+ of \d+ --$/m,
+    ];
+    let cut = -1;
+    for (const re of chrome) {
+      const m = notes.match(re);
+      if (m && (cut === -1 || m.index < cut)) cut = m.index;
+    }
+    if (cut !== -1) notes = notes.slice(0, cut).replace(/\s+$/, '') || null;
+  }
+
   // --- Line items ---
   // Find the "Description  Rate  Qty  Line Total" header (tabs may have surrounding spaces)
   const headerMatch = text.match(/Description\s+Rate\s+Qty\s+Line Total/);
