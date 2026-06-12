@@ -7,6 +7,7 @@ RUN npm ci --omit=dev
 
 COPY src/ src/
 COPY migrations/ migrations/
+COPY scripts/ scripts/
 
 RUN mkdir -p data/invoices data/estimates
 
