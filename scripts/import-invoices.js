@@ -42,16 +42,22 @@ function parsePdfText(text) {
   const currencyMatch = text.match(/Amount Due \((\w{3})\)/);
   const currency = currencyMatch ? currencyMatch[1] : 'EUR';
 
-  // Client block: lines after "Tax ID:" and before "Invoice Number"
-  // May contain: person name, company name, address lines, country, VAT number
-  // We keep all lines for flexible matching (person name or company name)
-  const taxIdIdx = text.indexOf('Tax ID:');
+  // Client block: lines between the end of the sender block and "Invoice
+  // Number". May contain: person name, company name, address lines, country,
+  // VAT number. We keep all lines for flexible matching (person or company).
+  // Pre-2026 Freshbooks PDFs end the sender block with a "Tax ID:" line; the
+  // 2026 template ends it with the sender's own "VAT: ..." line instead.
   const invNumIdx = text.indexOf('Invoice Number');
+  let senderEndIdx = text.indexOf('Tax ID:');
+  if (senderEndIdx === -1 || senderEndIdx > invNumIdx) {
+    const vatLine = text.match(/^VAT:.*$/m);
+    if (vatLine && vatLine.index < invNumIdx) senderEndIdx = vatLine.index;
+  }
   let clientName = null;
   let clientBlockLines = [];
-  if (taxIdIdx !== -1 && invNumIdx !== -1) {
-    const between = text.substring(taxIdIdx, invNumIdx);
-    clientBlockLines = between.split('\n').slice(1) // skip the Tax ID line
+  if (senderEndIdx !== -1 && invNumIdx !== -1 && senderEndIdx < invNumIdx) {
+    const between = text.substring(senderEndIdx, invNumIdx);
+    clientBlockLines = between.split('\n').slice(1) // skip the anchor line
       .map(l => l.trim()).filter(Boolean);
     clientName = clientBlockLines[0] || null; // first line (person or company)
   }
