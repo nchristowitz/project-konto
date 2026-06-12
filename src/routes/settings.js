@@ -14,12 +14,94 @@ router.get('/', async (req, res) => {
   const { rows: bankAccounts } = await pool.query(
     'SELECT * FROM bank_accounts ORDER BY is_default DESC, label'
   );
+  const { rows: yearRows } = await pool.query(`
+    SELECT DISTINCT EXTRACT(YEAR FROM issue_date)::int AS year
+    FROM invoices WHERE status NOT IN ('draft', 'cancelled')
+    ORDER BY year DESC
+  `);
 
   res.render('settings', {
     profile: profileResult.rows[0] || null,
     settings: settingsResult.rows[0],
     bankAccounts,
+    exportYears: yearRows.map((r) => r.year),
   });
+});
+
+// --- CSV exports for the tax advisor ---
+// Semicolon-delimited with a UTF-8 BOM so German Excel opens them directly.
+
+function csvCell(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function sendCsv(res, filename, header, rows) {
+  const body = [header, ...rows].map((r) => r.map(csvCell).join(';')).join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send('\uFEFF' + body);
+}
+
+const money = (v) => Number(v || 0).toFixed(2);
+
+// GET /settings/export/invoices.csv?year=YYYY — issued invoices by issue date
+router.get('/export/invoices.csv', async (req, res) => {
+  const year = parseInt(req.query.year, 10);
+  if (!year) return res.status(400).send('year required');
+
+  const { rows } = await pool.query(`
+    SELECT i.number, i.issue_date, i.service_period_start, i.service_period_end,
+           i.client_snapshot->>'name' AS client,
+           i.client_snapshot->>'country_code' AS client_country,
+           i.client_snapshot->>'vat_number' AS client_vat,
+           i.currency, i.subtotal, i.vat_rate, i.vat_amount, i.total,
+           i.reverse_charge, i.status, i.amount_paid,
+           o.number AS credits_number
+    FROM invoices i
+    LEFT JOIN invoices o ON o.id = i.credits_invoice_id
+    WHERE i.status NOT IN ('draft', 'cancelled')
+      AND EXTRACT(YEAR FROM i.issue_date) = $1
+    ORDER BY i.number
+  `, [year]);
+
+  sendCsv(res, `konto-invoices-${year}.csv`,
+    ['Number', 'Type', 'Issue date', 'Service from', 'Service to', 'Client', 'Country',
+     'Client VAT ID', 'Currency', 'Net', 'VAT rate %', 'VAT amount', 'Gross',
+     'Reverse charge', 'Status', 'Amount paid', 'Credits invoice'],
+    rows.map((r) => [
+      r.number, r.credits_number ? 'credit note' : 'invoice',
+      r.issue_date, r.service_period_start, r.service_period_end,
+      r.client, r.client_country, r.client_vat,
+      r.currency, money(r.subtotal), Number(r.vat_rate), money(r.vat_amount), money(r.total),
+      r.reverse_charge ? 'yes' : 'no', r.status, money(r.amount_paid), r.credits_number,
+    ]));
+});
+
+// GET /settings/export/payments.csv?year=YYYY — payments received by date
+// (the EÜR-relevant view: income counts when the money arrives, §11 EStG)
+router.get('/export/payments.csv', async (req, res) => {
+  const year = parseInt(req.query.year, 10);
+  if (!year) return res.status(400).send('year required');
+
+  const { rows } = await pool.query(`
+    SELECT p.paid_at, i.number, i.client_snapshot->>'name' AS client,
+           p.method, p.reference, i.currency, p.amount,
+           i.total AS invoice_total, i.vat_rate, i.reverse_charge
+    FROM payments p
+    JOIN invoices i ON i.id = p.invoice_id
+    WHERE EXTRACT(YEAR FROM p.paid_at) = $1
+    ORDER BY p.paid_at, i.number
+  `, [year]);
+
+  sendCsv(res, `konto-payments-${year}.csv`,
+    ['Paid on', 'Invoice', 'Client', 'Method', 'Reference', 'Currency',
+     'Amount', 'Invoice total', 'VAT rate %', 'Reverse charge'],
+    rows.map((r) => [
+      r.paid_at, r.number, r.client, r.method, r.reference, r.currency,
+      money(r.amount), money(r.invoice_total), Number(r.vat_rate), r.reverse_charge ? 'yes' : 'no',
+    ]));
 });
 
 // POST /settings/profile

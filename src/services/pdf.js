@@ -36,7 +36,7 @@ function formatDate(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-async function generateInvoicePdf({ invoice, lines, profile, client, documentTitle = 'INVOICE', dueDateLabel = 'Due:', statusWatermark = null }) {
+async function generateInvoicePdf({ invoice, lines, profile, client, documentTitle = 'INVOICE', dueDateLabel = 'Due:', statusWatermark = null, creditRef = null }) {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -173,6 +173,35 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
     y -= LINE_HEIGHT;
   }
 
+  // §14 UStG: invoices must state the supply date or period (estimates don't)
+  if (documentTitle !== 'ESTIMATE') {
+    if (invoice.service_period_start && invoice.service_period_end) {
+      drawText('Service from:', datesX, FONT_SIZE, true);
+      drawTextRight(formatDate(invoice.service_period_start), FONT_SIZE, false);
+      y -= LINE_HEIGHT;
+      drawText('Service to:', datesX, FONT_SIZE, true);
+      drawTextRight(formatDate(invoice.service_period_end), FONT_SIZE, false);
+      y -= LINE_HEIGHT;
+    } else {
+      drawText('Service date:', datesX, FONT_SIZE, true);
+      drawTextRight(
+        invoice.service_period_start ? formatDate(invoice.service_period_start) : 'as invoice date',
+        FONT_SIZE, false
+      );
+      y -= LINE_HEIGHT;
+    }
+  }
+
+  // Credit note: reference to the corrected invoice
+  if (creditRef) {
+    drawText('Credits invoice:', datesX, FONT_SIZE, true);
+    drawTextRight(creditRef.number, FONT_SIZE, false);
+    y -= LINE_HEIGHT;
+    drawText('Dated:', datesX, FONT_SIZE, true);
+    drawTextRight(formatDate(creditRef.issue_date), FONT_SIZE, false);
+    y -= LINE_HEIGHT;
+  }
+
   // Reference rows
   if (invoice.reference) {
     const refLines = invoice.reference.split('\n').filter(r => r.trim());
@@ -193,7 +222,9 @@ async function generateInvoicePdf({ invoice, lines, profile, client, documentTit
     color: rgb(0.6, 0.6, 0.6),
   });
   y -= 10;
-  const amountDueLabel = documentTitle === 'ESTIMATE' ? `Total (${invoice.currency})` : `Amount Due (${invoice.currency})`;
+  const amountDueLabel = (documentTitle === 'ESTIMATE' || documentTitle === 'CREDIT NOTE')
+    ? `Total (${invoice.currency})`
+    : `Amount Due (${invoice.currency})`;
   drawText(amountDueLabel, datesX, HEADING_SIZE, true);
   drawTextRight(`${amountDue}`, HEADING_SIZE, true);
   y -= LINE_HEIGHT;

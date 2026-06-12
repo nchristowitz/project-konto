@@ -4,7 +4,7 @@
 <% } %>
 <div class="page-header">
   <h1>Invoices</h1>
-  <a href="/invoices/new" class="btn">New invoice</a>
+  <a href="/invoices/new" class="button">New invoice</a>
 </div>
 
 <div class="filters">
@@ -24,23 +24,23 @@
     <div class="batch-bar">
       <form method="POST" action="/invoices/export" class="inline-form" id="export-form">
         <span id="hidden-ids-export"></span>
-        <button type="submit" class="btn-secondary btn-small" id="export-btn" disabled>Export</button>
+        <button type="submit" class="small" data-variant="secondary" id="export-btn" disabled>Export</button>
       </form>
       <form method="POST" action="/invoices/batch" class="inline-form" id="cancel-form">
         <span id="hidden-ids-cancel"></span>
         <input type="hidden" name="action" value="cancel">
-        <button type="submit" class="btn-secondary btn-small" id="cancel-btn" disabled>Cancel</button>
+        <button type="submit" class="small" data-variant="secondary" id="cancel-btn" disabled>Cancel</button>
       </form>
       <form method="POST" action="/invoices/batch" class="inline-form" id="delete-form">
         <span id="hidden-ids-delete"></span>
         <input type="hidden" name="action" value="delete">
-        <button type="submit" class="btn-danger btn-small" id="delete-btn" disabled>Delete</button>
+        <button type="submit" class="small outline" data-variant="danger" id="delete-btn" disabled>Delete</button>
       </form>
     </div>
     <table>
       <thead>
         <tr>
-          <th style="width:32px"><input type="checkbox" id="select-all"></th>
+          <th class="col-check"><input type="checkbox" id="select-all"></th>
           <th data-sort="text">Number</th>
           <th data-sort="text">Client</th>
           <th data-sort="date">Date</th>

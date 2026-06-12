@@ -24,8 +24,8 @@
       Q<%= quarter %> / Week <%= week %>
     </div>
     <div class="header-actions">
-      <a href="/estimates/new" class="btn-secondary">New estimate</a>
-      <a href="/invoices/new" class="btn">New invoice</a>
+      <a href="/estimates/new" class="button" data-variant="secondary">New estimate</a>
+      <a href="/invoices/new" class="button">New invoice</a>
     </div>
   </div>
 </div>
@@ -71,7 +71,7 @@
       <svg width="72" height="72" viewBox="0 0 36 36">
         <!-- Time progress (outer ring) -->
         <circle cx="18" cy="18" r="16" fill="none" stroke="var(--border)" stroke-width="2.5"/>
-        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--text-secondary)" stroke-width="2.5"
+        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--muted-foreground)" stroke-width="2.5"
           stroke-dasharray="100.53" stroke-dashoffset="<%= 100.53 * (1 - yearProgress / 100) %>"
           stroke-linecap="round" transform="rotate(-90 18 18)"/>
         <% if (yearTarget > 0) { %>
@@ -85,8 +85,8 @@
     </div>
     <% if (yearTarget > 0) { %>
       <div class="dash-ring-legend">
-        <span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--text-secondary)"></span>Time</span>
-        <span class="dash-legend-item"><span class="dash-legend-dot" style="background:var(--success)"></span>Earned</span>
+        <span class="dash-legend-item"><span class="dash-legend-dot dot-time"></span>Time</span>
+        <span class="dash-legend-item"><span class="dash-legend-dot dot-earned"></span>Earned</span>
       </div>
     <% } %>
   </div>
@@ -94,7 +94,7 @@
 
 <% if (acceptedEstimates.length > 0) { %>
 <div class="card">
-  <h2 class="section-label" style="color: var(--success)">Accepted Estimates</h2>
+  <h2 class="section-label success">Accepted Estimates</h2>
   <table>
     <tbody>
       <% for (const est of acceptedEstimates) { %>

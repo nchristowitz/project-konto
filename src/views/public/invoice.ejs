@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invoice <%= invoice.number %></title>
+  <title><%= creditRef ? 'Credit Note' : 'Invoice' %> <%= invoice.number %></title>
+  <link rel="stylesheet" href="/oat.min.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="public-invoice-page">
   <div class="invoice-toolbar">
-    <span>Invoice <%= invoice.number %></span>
+    <span><%= creditRef ? 'Credit Note' : 'Invoice' %> <%= invoice.number %></span>
     <% if (invoice.pdf_filename) { %>
       <a href="/i/<%= invoice.view_token %>/pdf">Download PDF</a>
     <% } %>
   </div>
   <div class="invoice-document">
-    <% if (invoice.status === 'paid' || invoice.status === 'cancelled') { %>
+    <% if ((invoice.status === 'paid' && !creditRef) || invoice.status === 'cancelled') { %>
       <div class="inv-watermark inv-watermark-<%= invoice.status %>"><%= invoice.status %></div>
     <% } %>
     <div class="inv-header">
@@ -33,7 +34,7 @@
       </div>
     </div>
 
-    <div class="inv-title">INVOICE <%= invoice.number %></div>
+    <div class="inv-title"><%= creditRef ? 'CREDIT NOTE' : 'INVOICE' %> <%= invoice.number %></div>
 
     <div class="inv-parties">
       <div class="inv-to">
@@ -52,13 +53,25 @@
         <% if (invoice.due_date) { %>
           <div class="inv-date-row"><span>Due:</span><span><%= new Date(invoice.due_date).toISOString().slice(0,10) %></span></div>
         <% } %>
+        <% if (invoice.service_period_start && invoice.service_period_end) { %>
+          <div class="inv-date-row"><span>Service from:</span><span><%= new Date(invoice.service_period_start).toISOString().slice(0,10) %></span></div>
+          <div class="inv-date-row"><span>Service to:</span><span><%= new Date(invoice.service_period_end).toISOString().slice(0,10) %></span></div>
+        <% } else if (invoice.service_period_start) { %>
+          <div class="inv-date-row"><span>Service date:</span><span><%= new Date(invoice.service_period_start).toISOString().slice(0,10) %></span></div>
+        <% } else { %>
+          <div class="inv-date-row"><span>Service date:</span><span>as invoice date</span></div>
+        <% } %>
+        <% if (creditRef) { %>
+          <div class="inv-date-row"><span>Credits invoice:</span><span><%= creditRef.number %></span></div>
+          <div class="inv-date-row"><span>Dated:</span><span><%= creditRef.issue_date ? new Date(creditRef.issue_date).toISOString().slice(0,10) : '' %></span></div>
+        <% } %>
         <% if (invoice.reference) { %>
           <% for (const ref of invoice.reference.split('\n').filter(r => r.trim())) { %>
             <div class="inv-date-row"><span>Reference</span><span><%= ref.trim() %></span></div>
           <% } %>
         <% } %>
         <div class="inv-separator-short"></div>
-        <div class="inv-date-row inv-amount-due"><span>Amount Due (<%= invoice.currency %>)</span><span><%= fmt(Number(invoice.total) - Number(invoice.amount_paid)) %></span></div>
+        <div class="inv-date-row inv-amount-due"><span><%= creditRef ? 'Total' : 'Amount Due' %> (<%= invoice.currency %>)</span><span><%= creditRef ? fmt(invoice.total) : fmt(Number(invoice.total) - Number(invoice.amount_paid)) %></span></div>
       </div>
     </div>
 

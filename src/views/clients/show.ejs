@@ -5,16 +5,16 @@
 <div class="page-header">
   <h1><%= clientData.name %></h1>
   <div class="header-actions">
-    <a href="/clients/<%= clientData.id %>/edit" class="btn">Edit</a>
+    <a href="/clients/<%= clientData.id %>/edit" class="button">Edit</a>
     <% if (!clientData.archived) { %>
-      <a href="/invoices/new?client=<%= clientData.id %>" class="btn-secondary">New invoice</a>
-      <a href="/estimates/new?client=<%= clientData.id %>" class="btn-secondary">New estimate</a>
+      <a href="/invoices/new?client=<%= clientData.id %>" class="button" data-variant="secondary">New invoice</a>
+      <a href="/estimates/new?client=<%= clientData.id %>" class="button" data-variant="secondary">New estimate</a>
       <form method="POST" action="/clients/<%= clientData.id %>/archive" class="inline-form">
-        <button type="submit" class="btn-danger" onclick="return confirm('Archive this client?')">Archive</button>
+        <button type="submit" class="outline" data-variant="danger" onclick="return confirm('Archive this client?')">Archive</button>
       </form>
     <% } else { %>
       <form method="POST" action="/clients/<%= clientData.id %>/unarchive" class="inline-form">
-        <button type="submit" class="btn-secondary" onclick="return confirm('Restore this client?')">Restore</button>
+        <button type="submit" data-variant="secondary" onclick="return confirm('Restore this client?')">Restore</button>
       </form>
     <% } %>
   </div>

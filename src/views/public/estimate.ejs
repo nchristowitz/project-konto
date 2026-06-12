@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Estimate <%= estimate.number %></title>
+  <link rel="stylesheet" href="/oat.min.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="public-invoice-page">
@@ -116,7 +117,7 @@
   </div>
 
   <%# Acceptance section — outside the document for visual separation %>
-  <div style="max-width: 800px; margin: 0 auto 40px; padding: 0 24px;">
+  <div class="acceptance-wrap">
     <% if (query.accepted === '1') { %>
       <div class="estimate-status-banner accepted">
         Estimate accepted. Thank you!
@@ -136,12 +137,10 @@
         <% } %>
         <form method="POST" action="/e/<%= estimate.view_token %>/accept" id="accept-form">
           <% if (estimate.terms_text) { %>
-            <div style="margin-bottom: 16px;">
-              <label class="checkbox-label" style="justify-content: center; font-family: var(--font); font-size: 13px;">
-                <input type="checkbox" id="accept-terms" required>
-                I have read and accept the terms and conditions
-              </label>
-            </div>
+            <label class="checkbox-label accept-check">
+              <input type="checkbox" id="accept-terms" required>
+              I have read and accept the terms and conditions
+            </label>
           <% } %>
           <button type="submit" class="accept-btn" id="accept-btn">Accept Estimate</button>
         </form>

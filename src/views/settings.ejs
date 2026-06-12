@@ -59,27 +59,27 @@
 
   <div id="bank-accounts">
     <% for (const ba of bankAccounts) { %>
-    <div class="ba-card" style="border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem">
+    <div class="ba-card">
       <!-- View mode -->
       <div class="ba-view">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
+        <div class="ba-head">
+          <div class="ba-title">
             <strong><%= ba.label %></strong>
-            <% if (ba.is_default) { %><span class="status status-paid" style="margin-left:0.5rem">Default</span><% } %>
+            <% if (ba.is_default) { %><span class="status status-paid">Default</span><% } %>
           </div>
-          <div style="display:flex;gap:0.5rem">
+          <div class="ba-actions">
             <% if (!ba.is_default) { %>
             <form method="POST" action="/settings/bank-accounts/<%= ba.id %>/default" class="inline-form">
-              <button type="submit" class="btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.8rem">Set default</button>
+              <button type="submit" class="small" data-variant="secondary">Set default</button>
             </form>
             <% } %>
-            <button type="button" class="btn-secondary ba-edit-btn" style="padding:0.25rem 0.5rem;font-size:0.8rem">Edit</button>
+            <button type="button" class="small ba-edit-btn" data-variant="secondary">Edit</button>
             <form method="POST" action="/settings/bank-accounts/<%= ba.id %>/delete" class="inline-form">
-              <button type="submit" class="btn-danger" style="padding:0.25rem 0.5rem;font-size:0.8rem" onclick="return confirm('Delete this bank account?')">Delete</button>
+              <button type="submit" class="small outline" data-variant="danger" onclick="return confirm('Delete this bank account?')">Delete</button>
             </form>
           </div>
         </div>
-        <div style="margin-top:0.5rem;color:var(--text-secondary);font-size:0.9rem">
+        <div class="ba-meta">
           <% if (ba.account_holder) { %><div>Account holder: <%= ba.account_holder %></div><% } %>
           <% if (ba.bank_name) { %><div>Bank: <%= ba.bank_name %></div><% } %>
           <% if (ba.iban) { %><div>IBAN: <%= ba.iban %></div><% } %>
@@ -133,9 +133,9 @@
               </label>
             </div>
           </div>
-          <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+          <div class="ba-form-actions">
             <button type="submit">Save</button>
-            <button type="button" class="btn-secondary ba-cancel-btn">Cancel</button>
+            <button type="button" class="ba-cancel-btn" data-variant="secondary">Cancel</button>
           </div>
         </form>
       </div>
@@ -144,7 +144,7 @@
   </div>
 
   <!-- Add new bank account (hidden by default) -->
-  <div id="ba-new-form" style="display:none;border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem">
+  <div id="ba-new-form" class="ba-card" style="display:none">
     <form method="POST" action="/settings/bank-accounts">
       <div class="form-grid">
         <div class="form-group">
@@ -187,14 +187,14 @@
           </label>
         </div>
       </div>
-      <div style="display:flex;gap:0.5rem;margin-top:0.5rem">
+      <div class="ba-form-actions">
         <button type="submit">Add account</button>
-        <button type="button" class="btn-secondary" id="ba-cancel-new">Cancel</button>
+        <button type="button" data-variant="secondary" id="ba-cancel-new">Cancel</button>
       </div>
     </form>
   </div>
 
-  <button type="button" id="ba-add-btn" class="btn-secondary">+ Add bank account</button>
+  <button type="button" id="ba-add-btn" data-variant="secondary">+ Add bank account</button>
 </div>
 
 <script>
@@ -293,24 +293,54 @@
 </div>
 
 <div class="card">
+  <h2>Exports</h2>
+  <p class="text-secondary mb-4">CSV exports for your tax advisor (semicolon-delimited, opens directly in Excel). Invoices are listed by issue date; payments by date received — the EÜR-relevant view.</p>
+  <% if (exportYears.length === 0) { %>
+    <p class="empty">No invoices to export yet.</p>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Year</th>
+          <th class="text-right">Downloads</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const y of exportYears) { %>
+          <tr>
+            <td><%= y %></td>
+            <td class="text-right">
+              <span class="export-actions">
+                <a href="/settings/export/invoices.csv?year=<%= y %>" class="button small" data-variant="secondary">Invoices CSV</a>
+                <a href="/settings/export/payments.csv?year=<%= y %>" class="button small" data-variant="secondary">Payments CSV</a>
+              </span>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<div class="card">
   <h2>Data Reset</h2>
-  <p class="text-secondary" style="margin-bottom: 16px">Permanently delete data. This cannot be undone. You must type the confirmation phrase exactly.</p>
+  <p class="text-secondary mb-4">Permanently delete data. This cannot be undone. You must type the confirmation phrase exactly.</p>
   <div class="form-actions">
     <form method="POST" action="/settings/reset" class="inline-form" data-confirm-phrase="delete invoices" data-confirm-message="This will delete ALL invoices, payments, and email logs. Type &quot;delete invoices&quot; to confirm:">
       <input type="hidden" name="action" value="invoices">
-      <button type="submit" class="btn-danger">Delete all invoices</button>
+      <button type="submit" class="outline" data-variant="danger">Delete all invoices</button>
     </form>
     <form method="POST" action="/settings/reset" class="inline-form" data-confirm-phrase="delete estimates" data-confirm-message="This will delete ALL estimates. Type &quot;delete estimates&quot; to confirm:">
       <input type="hidden" name="action" value="estimates">
-      <button type="submit" class="btn-danger">Delete all estimates</button>
+      <button type="submit" class="outline" data-variant="danger">Delete all estimates</button>
     </form>
     <form method="POST" action="/settings/reset" class="inline-form" data-confirm-phrase="delete clients" data-confirm-message="This will delete ALL clients AND all their invoices and estimates. Type &quot;delete clients&quot; to confirm:">
       <input type="hidden" name="action" value="clients">
-      <button type="submit" class="btn-danger">Delete all clients</button>
+      <button type="submit" class="outline" data-variant="danger">Delete all clients</button>
     </form>
     <form method="POST" action="/settings/reset" class="inline-form" data-confirm-phrase="delete everything" data-confirm-message="This will wipe EVERYTHING: clients, invoices, estimates, payments, and numbering sequences. Type &quot;delete everything&quot; to confirm:">
       <input type="hidden" name="action" value="all">
-      <button type="submit" class="btn-danger">Delete everything</button>
+      <button type="submit" class="outline" data-variant="danger">Delete everything</button>
     </form>
   </div>
 </div>

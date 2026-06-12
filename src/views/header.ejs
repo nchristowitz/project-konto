@@ -4,18 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Konto</title>
+  <link rel="stylesheet" href="/oat.min.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <% if (typeof authenticated !== 'undefined' && authenticated) { %>
-  <nav>
+  <% const cur = typeof currentPath !== 'undefined' ? currentPath : ''; %>
+  <nav data-topnav>
     <div class="nav-inner">
       <a href="/dashboard" class="nav-brand">Konto</a>
       <div class="nav-links">
-        <a href="/clients">Clients</a>
-        <a href="/estimates">Estimates</a>
-        <a href="/invoices">Invoices</a>
-        <a href="/settings">Settings</a>
+        <a href="/clients" <%- cur.startsWith('/clients') ? 'aria-current="page"' : '' %>>Clients</a>
+        <a href="/estimates" <%- cur.startsWith('/estimates') ? 'aria-current="page"' : '' %>>Estimates</a>
+        <a href="/invoices" <%- cur.startsWith('/invoices') ? 'aria-current="page"' : '' %>>Invoices</a>
+        <a href="/settings" <%- cur.startsWith('/settings') ? 'aria-current="page"' : '' %>>Settings</a>
         <a href="/logout">Log out</a>
       </div>
     </div>

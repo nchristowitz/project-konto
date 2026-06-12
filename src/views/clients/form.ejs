@@ -21,21 +21,20 @@
         <div id="additional-emails">
           <% const addEmails = (clientData && clientData.additional_emails) || []; %>
           <% for (const ae of addEmails) { %>
-          <div class="additional-email-row" style="display:flex;gap:0.5rem;margin-bottom:0.25rem">
-            <input type="email" name="additional_emails[]" value="<%= ae %>" style="flex:1">
-            <button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="padding:0.25rem 0.5rem">&times;</button>
+          <div class="email-row">
+            <input type="email" name="additional_emails[]" value="<%= ae %>">
+            <button type="button" class="small ghost" data-variant="danger" onclick="this.parentElement.remove()">&times;</button>
           </div>
           <% } %>
         </div>
-        <button type="button" class="btn-secondary" onclick="addEmailField()" style="margin-top:0.25rem;padding:0.25rem 0.75rem">+ Add email</button>
+        <button type="button" class="small mt-2" data-variant="secondary" onclick="addEmailField()">+ Add email</button>
       </div>
       <script>
       function addEmailField() {
         const row = document.createElement('div');
-        row.className = 'additional-email-row';
-        row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.25rem';
-        row.innerHTML = '<input type="email" name="additional_emails[]" style="flex:1">'
-          + '<button type="button" class="btn-danger" onclick="this.parentElement.remove()" style="padding:0.25rem 0.5rem">&times;</button>';
+        row.className = 'email-row';
+        row.innerHTML = '<input type="email" name="additional_emails[]">'
+          + '<button type="button" class="small ghost" data-variant="danger" onclick="this.parentElement.remove()">&times;</button>';
         document.getElementById('additional-emails').appendChild(row);
         row.querySelector('input').focus();
       }
@@ -106,7 +105,7 @@
     </div>
     <div class="form-actions">
       <button type="submit"><%= clientData ? 'Save changes' : 'Create client' %></button>
-      <a href="<%= clientData ? '/clients/' + clientData.id : '/clients' %>" class="btn-secondary">Cancel</a>
+      <a href="<%= clientData ? '/clients/' + clientData.id : '/clients' %>" class="button" data-variant="secondary">Cancel</a>
     </div>
   </form>
 </div>

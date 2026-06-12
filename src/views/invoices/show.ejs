@@ -23,24 +23,27 @@
 <% if (query.error === 'pdf_failed') { %>
   <div class="notice notice-error">Failed to generate PDF.</div>
 <% } %>
+<% if (query.error === 'pdf_failed_send') { %>
+  <div class="notice notice-error">PDF generation failed, so the invoice was NOT sent. Fix the issue and retry, or use "Mark as sent (no email)" to record it without the e-invoice PDF.</div>
+<% } %>
 <% if (query.error && !['send_failed', 'remind_failed', 'pdf_failed'].includes(query.error)) { %>
   <div class="notice notice-error"><%= query.error %></div>
 <% } %>
 <div class="page-header">
-  <h1>Invoice <%= invoice.number %></h1>
+  <h1><%= invoice.credits_invoice_id ? 'Credit Note' : 'Invoice' %> <%= invoice.number %></h1>
   <div class="header-actions">
     <% if (invoice.status === 'draft') { %>
-      <a href="/invoices/<%= invoice.id %>/edit" class="btn">Edit</a>
+      <a href="/invoices/<%= invoice.id %>/edit" class="button">Edit</a>
     <% } %>
     <% if (invoice.status !== 'draft') { %>
       <% if (invoice.pdf_filename) { %>
-        <a href="/invoices/<%= invoice.id %>/pdf" class="btn-secondary">Download PDF</a>
+        <a href="/invoices/<%= invoice.id %>/pdf" class="button" data-variant="secondary">Download PDF</a>
       <% } %>
       <form method="POST" action="/invoices/<%= invoice.id %>/pdf" class="inline-form">
-        <button type="submit" class="btn-secondary"><%= invoice.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
+        <button type="submit" data-variant="secondary"><%= invoice.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
       </form>
     <% } %>
-    <a href="/i/<%= invoice.view_token %>" class="btn-secondary" target="_blank">Public link</a>
+    <a href="/i/<%= invoice.view_token %>" class="button" data-variant="secondary" target="_blank">Public link</a>
   </div>
 </div>
 
@@ -49,6 +52,22 @@
     <span class="meta-label">Status</span>
     <span class="status status-<%= invoice.status %>"><%= invoice.status %></span>
   </div>
+  <% if (creditedInvoice) { %>
+  <div class="meta-row">
+    <span class="meta-label">Credits</span>
+    <span><a href="/invoices/<%= creditedInvoice.id %>"><%= creditedInvoice.number %></a> dated <%= creditedInvoice.issue_date ? new Date(creditedInvoice.issue_date).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <% } %>
+  <% if (creditNotes.length) { %>
+  <div class="meta-row">
+    <span class="meta-label">Credited by</span>
+    <span>
+      <% for (const cn of creditNotes) { %>
+        <a href="/invoices/<%= cn.id %>"><%= cn.number %></a> <span class="status status-<%= cn.status %>"><%= cn.status %></span>
+      <% } %>
+    </span>
+  </div>
+  <% } %>
   <div class="meta-row">
     <span class="meta-label">Client</span>
     <span><a href="/clients/<%= invoice.client_id %>"><%= invoice.client_name %></a></span>
@@ -60,6 +79,18 @@
   <div class="meta-row">
     <span class="meta-label">Due date</span>
     <span><%= invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : '' %></span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-label">Service</span>
+    <span>
+      <% if (invoice.service_period_start && invoice.service_period_end) { %>
+        <%= new Date(invoice.service_period_start).toISOString().slice(0, 10) %> to <%= new Date(invoice.service_period_end).toISOString().slice(0, 10) %>
+      <% } else if (invoice.service_period_start) { %>
+        <%= new Date(invoice.service_period_start).toISOString().slice(0, 10) %>
+      <% } else { %>
+        <span class="text-secondary">same as invoice date</span>
+      <% } %>
+    </span>
   </div>
   <% if (invoice.reference) { %>
   <div class="meta-row">
@@ -138,7 +169,7 @@
 
 <% if (invoice.status !== 'draft' && invoice.status !== 'cancelled') { %>
 <div class="card">
-  <h2>Payments</h2>
+  <h2><%= invoice.credits_invoice_id ? 'Refunds' : 'Payments' %></h2>
   <% if (payments.length > 0) { %>
     <table>
       <thead>
@@ -159,7 +190,7 @@
             <td><%= p.reference || '' %></td>
             <td>
               <form method="POST" action="/invoices/<%= invoice.id %>/payments/<%= p.id %>/delete" class="inline-form">
-                <button type="submit" class="btn-danger btn-small" onclick="return confirm('Remove this payment?')">&times;</button>
+                <button type="submit" class="small ghost" data-variant="danger" onclick="return confirm('Remove this payment?')">&times;</button>
               </form>
             </td>
           </tr>
@@ -168,7 +199,7 @@
     </table>
   <% } %>
   <details class="payment-form-toggle">
-    <summary>Record payment</summary>
+    <summary><%= invoice.credits_invoice_id ? 'Record refund' : 'Record payment' %></summary>
     <form method="POST" action="/invoices/<%= invoice.id %>/payments" class="payment-form">
       <div class="form-grid">
         <div class="form-group">
@@ -208,32 +239,39 @@
       </form>
       <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="sent">
-        <button type="submit" class="btn-secondary">Mark as sent (no email)</button>
+        <button type="submit" data-variant="secondary">Mark as sent (no email)</button>
       </form>
     <% } %>
     <% if (['sent', 'viewed', 'overdue', 'partially_paid'].includes(invoice.status)) { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/send" class="inline-form">
-        <button type="submit" class="btn-secondary">Resend to client</button>
+        <button type="submit" data-variant="secondary">Resend to client</button>
       </form>
     <% } %>
     <% if (['sent', 'viewed', 'overdue'].includes(invoice.status)) { %>
+      <% if (!invoice.credits_invoice_id) { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/remind" class="inline-form">
         <button type="submit">Send reminder</button>
       </form>
+      <% } %>
       <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="paid">
-        <button type="submit">Mark as paid</button>
+        <button type="submit">Mark as <%= invoice.credits_invoice_id ? 'settled' : 'paid' %></button>
+      </form>
+    <% } %>
+    <% if (!invoice.credits_invoice_id && !['draft', 'cancelled'].includes(invoice.status)) { %>
+      <form method="POST" action="/invoices/<%= invoice.id %>/credit-note" class="inline-form">
+        <button type="submit" data-variant="secondary" onclick="return confirm('Create a draft credit note for this invoice? You can edit the line items before sending it.')">Issue credit note</button>
       </form>
     <% } %>
     <% if (invoice.status !== 'cancelled' && invoice.status !== 'paid') { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="cancelled">
-        <button type="submit" class="btn-danger" onclick="return confirm('Cancel this invoice?')">Cancel invoice</button>
+        <button type="submit" class="outline" data-variant="danger" onclick="return confirm('Cancel this invoice?')">Cancel invoice</button>
       </form>
     <% } %>
     <% if (invoice.status === 'draft') { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/delete" class="inline-form">
-        <button type="submit" class="btn-danger" onclick="return confirm('Permanently delete this draft invoice? This cannot be undone.')">Delete draft</button>
+        <button type="submit" class="outline" data-variant="danger" onclick="return confirm('Permanently delete this draft invoice? This cannot be undone.')">Delete draft</button>
       </form>
     <% } %>
   </div>

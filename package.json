@@ -9,7 +9,6 @@
     "hash-password": "node scripts/hash-password.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.77.0",
     "@e-invoice-eu/core": "^2.3.1",
     "archiver": "^7.0.1",
     "bcrypt": "^5.1.1",

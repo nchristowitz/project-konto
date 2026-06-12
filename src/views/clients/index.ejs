@@ -1,7 +1,7 @@
 <%- include('../header') %>
 <div class="page-header">
   <h1>Clients</h1>
-  <a href="/clients/new" class="btn">New client</a>
+  <a href="/clients/new" class="button">New client</a>
 </div>
 
 <div class="filters">
@@ -16,18 +16,18 @@
   <div class="card">
     <div class="export-bar">
       <% if (showArchived) { %>
-        <button type="submit" formaction="/clients/batch-unarchive" class="btn-secondary btn-small" id="unarchive-btn" disabled>Restore selected</button>
-        <button type="submit" formaction="/clients/batch-delete" class="btn-danger btn-small" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
+        <button type="submit" formaction="/clients/batch-unarchive" class="small" data-variant="secondary" id="unarchive-btn" disabled>Restore selected</button>
+        <button type="submit" formaction="/clients/batch-delete" class="small outline" data-variant="danger" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
         <input type="hidden" name="return_archived" value="1">
       <% } else { %>
-        <button type="submit" formaction="/clients/batch-archive" class="btn-secondary btn-small" id="archive-btn" disabled>Archive selected</button>
-        <button type="submit" formaction="/clients/batch-delete" class="btn-danger btn-small" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
+        <button type="submit" formaction="/clients/batch-archive" class="small" data-variant="secondary" id="archive-btn" disabled>Archive selected</button>
+        <button type="submit" formaction="/clients/batch-delete" class="small outline" data-variant="danger" id="delete-btn" disabled onclick="return confirm('Permanently delete selected clients? Clients with invoices cannot be deleted.')">Delete selected</button>
       <% } %>
     </div>
     <table>
       <thead>
         <tr>
-          <th style="width:32px"><input type="checkbox" id="select-all"></th>
+          <th class="col-check"><input type="checkbox" id="select-all"></th>
           <th data-sort="text">Name</th>
           <th data-sort="text">Email</th>
           <th class="text-right" data-sort="number">Revenue</th>

@@ -25,11 +25,22 @@ router.get('/i/:token', async (req, res) => {
     'SELECT * FROM business_profile WHERE id = 1'
   );
 
+  // Credit note? Reference to the corrected invoice for display
+  let creditRef = null;
+  if (invoice.credits_invoice_id) {
+    const { rows: refRows } = await pool.query(
+      'SELECT number, issue_date FROM invoices WHERE id = $1',
+      [invoice.credits_invoice_id]
+    );
+    creditRef = refRows[0] || null;
+  }
+
   res.render('public/invoice', {
     invoice,
     lines,
     profile: profileRows[0] || {},
     clientData: invoice.client_snapshot,
+    creditRef,
   });
 });
 
@@ -47,7 +58,7 @@ router.get('/i/:token/pdf', async (req, res) => {
   const filePath = path.join(process.cwd(), 'data', 'invoices', invoice.pdf_filename);
   if (!fs.existsSync(filePath)) return res.status(404).send('PDF file not found');
 
-  res.download(filePath, `Invoice-${invoice.number}.pdf`);
+  res.download(filePath, `${invoice.credits_invoice_id ? 'Credit-Note' : 'Invoice'}-${invoice.number}.pdf`);
 });
 
 // POST /api/views/:token — view tracking beacon

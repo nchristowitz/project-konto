@@ -1,7 +1,12 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const { migrate } = require('postgres-migrations');
 const path = require('path');
 const config = require('./config');
+
+// Return DATE columns as 'YYYY-MM-DD' strings instead of local-midnight Date
+// objects. Templates render dates via toISOString(), which shifts a local
+// midnight back one day on any host east of UTC (e.g. Europe/Berlin).
+types.setTypeParser(types.builtins.DATE, (v) => v);
 
 const pool = new Pool({
   connectionString: config.databaseUrl,

@@ -8,7 +8,7 @@ function amt(value) {
   return Number(value).toFixed(2);
 }
 
-function buildUblInvoice({ invoice, lines, profile, client, bankAccount }) {
+function buildUblInvoice({ invoice, lines, profile, client, bankAccount, creditRef }) {
   const currency = invoice.currency || 'EUR';
   const isReverseCharge = invoice.reverse_charge;
   const vatCategory = isReverseCharge ? 'AE' : 'S';
@@ -147,12 +147,13 @@ function buildUblInvoice({ invoice, lines, profile, client, bankAccount }) {
     return lineItem;
   });
 
-  // Build full invoice
+  // Build full invoice. Credit notes use UNTDID 384 (corrected invoice) with
+  // negated quantities — valid EN 16931; unit prices stay positive (BR-27).
   const ublInvoice = {
     'ubl:Invoice': {
       'cbc:ID': invoice.number,
       'cbc:IssueDate': formatDate(invoice.issue_date),
-      'cbc:InvoiceTypeCode': '380',
+      'cbc:InvoiceTypeCode': creditRef ? '384' : '380',
       'cbc:DocumentCurrencyCode': currency,
       'cac:AccountingSupplierParty': supplierParty,
       'cac:AccountingCustomerParty': customerParty,
@@ -164,6 +165,37 @@ function buildUblInvoice({ invoice, lines, profile, client, bankAccount }) {
 
   if (invoice.due_date) {
     ublInvoice['ubl:Invoice']['cbc:DueDate'] = formatDate(invoice.due_date);
+  }
+
+  // BG-3 preceding invoice reference — links the credit note to the invoice
+  // it corrects.
+  if (creditRef) {
+    // BG-3 preceding invoice reference. @e-invoice-eu/core 2.3.1 validates
+    // this nested UBL shape but its UBL→CII mapping reads a flat shape it
+    // never accepts, so the reference currently does NOT reach the CII XML
+    // (upstream schema/mapping mismatch; v3 dropped the mapping entirely).
+    // BG-3 is optional in EN 16931 — the correction is still machine-readable
+    // via TypeCode 384 and the IncludedNote, and visible on the PDF. Keeping
+    // the valid nested shape so a fixed upstream starts emitting it.
+    ublInvoice['ubl:Invoice']['cac:BillingReference'] = [{
+      'cac:InvoiceDocumentReference': {
+        'cbc:ID': creditRef.number,
+        'cbc:IssueDate': formatDate(creditRef.issue_date),
+      },
+    }];
+  }
+
+  // §14 UStG supply date/period: BG-14 (invoicing period) when a range is set,
+  // otherwise BT-72 (actual delivery date), defaulting to the issue date.
+  if (invoice.service_period_start && invoice.service_period_end) {
+    ublInvoice['ubl:Invoice']['cac:InvoicePeriod'] = {
+      'cbc:StartDate': formatDate(invoice.service_period_start),
+      'cbc:EndDate': formatDate(invoice.service_period_end),
+    };
+  } else {
+    ublInvoice['ubl:Invoice']['cac:Delivery'] = {
+      'cbc:ActualDeliveryDate': formatDate(invoice.service_period_start || invoice.issue_date),
+    };
   }
 
   if (invoice.reference) {
@@ -204,15 +236,30 @@ async function generateEInvoice(invoiceId) {
   const profile = profileRows[0] || {};
   const client = invoice.client_snapshot || {};
 
-  // 2. Generate visual PDF
+  // Credit note? Fetch the original invoice it references.
+  let creditRef = null;
+  if (invoice.credits_invoice_id) {
+    const { rows } = await pool.query(
+      'SELECT number, issue_date FROM invoices WHERE id = $1',
+      [invoice.credits_invoice_id]
+    );
+    creditRef = rows[0] || null;
+  }
+
+  // 2. Generate visual PDF. No PAID watermark on credit notes — "paid" there
+  // means the refund is settled, which the watermark would misstate.
   let statusWatermark = null;
-  if (invoice.status === 'paid') statusWatermark = 'PAID';
+  if (invoice.status === 'paid' && !creditRef) statusWatermark = 'PAID';
   else if (invoice.status === 'cancelled') statusWatermark = 'CANCELLED';
-  const pdfBytes = await generateInvoicePdf({ invoice, lines: lineRows, profile, client, statusWatermark });
+  const pdfBytes = await generateInvoicePdf({
+    invoice, lines: lineRows, profile, client, statusWatermark,
+    documentTitle: creditRef ? 'CREDIT NOTE' : 'INVOICE',
+    creditRef,
+  });
 
   // 3. Build UBL invoice data
   const bankAccount = invoice.bank_account_snapshot || {};
-  const ublData = buildUblInvoice({ invoice, lines: lineRows, profile, client, bankAccount });
+  const ublData = buildUblInvoice({ invoice, lines: lineRows, profile, client, bankAccount, creditRef });
 
   // 4. Generate Factur-X PDF/A with embedded XML
   const invoiceService = new InvoiceService(console);

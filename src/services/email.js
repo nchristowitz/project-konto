@@ -45,14 +45,16 @@ async function sendInvoiceEmail(invoice) {
 
   const contactName = invoice.client_snapshot?.contact_person || invoice.client_snapshot?.name || 'there';
   const link = `${config.baseUrl}/i/${invoice.view_token}`;
+  const isCreditNote = !!invoice.credits_invoice_id;
+  const docTitle = isCreditNote ? 'Credit note' : 'Invoice';
 
   const mailOptions = {
     from: config.emailFrom || '"Konto" <noreply@localhost>',
     to: clientEmail,
-    subject: `Invoice ${invoice.number} from ${config.senderName || 'Konto'}`,
+    subject: `${docTitle} ${invoice.number} from ${config.senderName || 'Konto'}`,
     text: `Hi ${contactName},
 
-Please find invoice ${invoice.number} for ${invoice.currency} ${Number(invoice.total).toFixed(2)}.
+Please find ${docTitle.toLowerCase()} ${invoice.number} for ${invoice.currency} ${Number(invoice.total).toFixed(2)}.
 
 View online: ${link}
 ${invoice.due_date ? `Due date: ${new Date(invoice.due_date).toISOString().slice(0, 10)}` : ''}
@@ -66,7 +68,7 @@ ${config.senderName || 'Konto'}`,
     const pdfPath = path.join(process.cwd(), 'data', 'invoices', invoice.pdf_filename);
     if (fs.existsSync(pdfPath)) {
       mailOptions.attachments = [{
-        filename: `Invoice-${invoice.number}.pdf`,
+        filename: `${isCreditNote ? 'Credit-Note' : 'Invoice'}-${invoice.number}.pdf`,
         path: pdfPath,
       }];
     }
@@ -78,7 +80,7 @@ ${config.senderName || 'Konto'}`,
   await pool.query(`
     INSERT INTO email_log (invoice_id, type, recipient, subject, status)
     VALUES ($1, 'invoice_sent', $2, $3, 'sent')
-  `, [invoice.id, clientEmail, `Invoice ${invoice.number}`]);
+  `, [invoice.id, clientEmail, `${docTitle} ${invoice.number}`]);
 
   // Show Ethereal preview URL in dev
   const previewUrl = nodemailer.getTestMessageUrl(info);

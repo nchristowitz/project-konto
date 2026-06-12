@@ -24,16 +24,16 @@
   <h1>Estimate <%= estimate.number %></h1>
   <div class="header-actions">
     <% if (['draft', 'sent'].includes(estimate.status)) { %>
-      <a href="/estimates/<%= estimate.id %>/edit" class="btn">Edit</a>
+      <a href="/estimates/<%= estimate.id %>/edit" class="button">Edit</a>
     <% } %>
     <% if (estimate.pdf_filename) { %>
-      <a href="/estimates/<%= estimate.id %>/pdf" class="btn-secondary">Download PDF</a>
+      <a href="/estimates/<%= estimate.id %>/pdf" class="button" data-variant="secondary">Download PDF</a>
     <% } %>
     <form method="POST" action="/estimates/<%= estimate.id %>/pdf" class="inline-form">
-      <button type="submit" class="btn-secondary"><%= estimate.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
+      <button type="submit" data-variant="secondary"><%= estimate.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
     </form>
     <% if (estimate.status !== 'draft') { %>
-      <a href="/e/<%= estimate.view_token %>" class="btn-secondary" target="_blank">Public link</a>
+      <a href="/e/<%= estimate.view_token %>" class="button" data-variant="secondary" target="_blank">Public link</a>
     <% } %>
   </div>
 </div>
@@ -147,10 +147,10 @@
       </form>
       <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="sent">
-        <button type="submit" class="btn-secondary">Mark as sent (no email)</button>
+        <button type="submit" data-variant="secondary">Mark as sent (no email)</button>
       </form>
       <form method="POST" action="/estimates/<%= estimate.id %>/delete" class="inline-form">
-        <button type="submit" class="btn-danger" onclick="return confirm('Delete this estimate?')">Delete</button>
+        <button type="submit" class="outline" data-variant="danger" onclick="return confirm('Delete this estimate?')">Delete</button>
       </form>
     <% } %>
     <% if (['sent', 'viewed'].includes(estimate.status)) { %>
@@ -159,11 +159,11 @@
       </form>
       <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="rejected">
-        <button type="submit" class="btn-secondary">Mark as rejected</button>
+        <button type="submit" data-variant="secondary">Mark as rejected</button>
       </form>
       <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="expired">
-        <button type="submit" class="btn-secondary">Mark as expired</button>
+        <button type="submit" data-variant="secondary">Mark as expired</button>
       </form>
     <% } %>
     <% if (estimate.status === 'accepted') { %>
@@ -172,7 +172,7 @@
       </form>
       <form method="POST" action="/estimates/<%= estimate.id %>/status" class="inline-form">
         <input type="hidden" name="status" value="rejected">
-        <button type="submit" class="btn-danger" onclick="return confirm('Reject this accepted estimate?')">Reject</button>
+        <button type="submit" class="outline" data-variant="danger" onclick="return confirm('Reject this accepted estimate?')">Reject</button>
       </form>
     <% } %>
   </div>

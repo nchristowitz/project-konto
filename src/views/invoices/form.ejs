@@ -46,6 +46,17 @@
         <input type="date" id="due_date" name="due_date" value="<%= invoice && invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0,10) : '' %>">
       </div>
       <div class="form-group">
+        <label for="service_period_start">Service period from</label>
+        <input type="date" id="service_period_start" name="service_period_start" value="<%= invoice && invoice.service_period_start ? new Date(invoice.service_period_start).toISOString().slice(0,10) : '' %>">
+      </div>
+      <div class="form-group">
+        <label for="service_period_end">Service period to</label>
+        <input type="date" id="service_period_end" name="service_period_end" value="<%= invoice && invoice.service_period_end ? new Date(invoice.service_period_end).toISOString().slice(0,10) : '' %>">
+      </div>
+      <div class="form-group full">
+        <span class="form-hint">Leave empty to state "service date corresponds to invoice date" (§14 UStG).</span>
+      </div>
+      <div class="form-group">
         <label for="vat_rate">VAT rate (%)</label>
         <input type="number" id="vat_rate" name="vat_rate" step="0.01" value="<%= invoice ? invoice.vat_rate : (selectedClient ? selectedClient.default_vat_rate : settings.default_vat_rate) %>">
       </div>
@@ -110,7 +121,7 @@
         </div>
       <% } %>
     </div>
-    <button type="button" id="add-line" class="btn-secondary">+ Add item</button>
+    <button type="button" id="add-line">+ Add item</button>
 
     <h2>Payment Details</h2>
     <div class="form-grid">
@@ -157,7 +168,7 @@
 
     <div class="form-actions">
       <button type="submit">Save draft</button>
-      <a href="/invoices" class="btn-secondary">Cancel</a>
+      <a href="/invoices" class="button" data-variant="secondary">Cancel</a>
     </div>
   </form>
 </div>

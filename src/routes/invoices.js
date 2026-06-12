@@ -74,6 +74,7 @@ router.post('/', async (req, res) => {
 
     const {
       client_id, currency, issue_date, due_date,
+      service_period_start, service_period_end,
       vat_rate, vat_label, vat_note, reverse_charge,
       payment_details, notes, internal_notes,
       bank_account_id, reference,
@@ -154,15 +155,17 @@ router.post('/', async (req, res) => {
       INSERT INTO invoices (
         number, client_id, client_snapshot,
         issue_date, due_date, currency,
+        service_period_start, service_period_end,
         vat_rate, vat_label, vat_note, reverse_charge,
         subtotal, vat_amount, total,
         view_token, payment_details, notes, internal_notes,
         bank_account_id, bank_account_snapshot, reference
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING id
     `, [
       number, client_id, JSON.stringify(clientSnapshot),
       issue_date, due_date || null, currency || 'EUR',
+      service_period_start || null, service_period_end || null,
       vatRate, vat_label || 'VAT', vat_note || null, isReverseCharge,
       subtotal, vatAmount, total,
       viewToken, payment_details || null, notes || null, internal_notes || null,
@@ -319,7 +322,121 @@ router.get('/:id', async (req, res) => {
     [invoice.id]
   );
 
-  res.render('invoices/show', { invoice, lines, payments, query: req.query });
+  // Credit-note cross-links: the original this one credits, and any credit
+  // notes that reference this invoice.
+  let creditedInvoice = null;
+  if (invoice.credits_invoice_id) {
+    const { rows } = await pool.query(
+      'SELECT id, number, issue_date FROM invoices WHERE id = $1',
+      [invoice.credits_invoice_id]
+    );
+    creditedInvoice = rows[0] || null;
+  }
+  const { rows: creditNotes } = await pool.query(
+    'SELECT id, number, status, total FROM invoices WHERE credits_invoice_id = $1 ORDER BY id',
+    [invoice.id]
+  );
+
+  res.render('invoices/show', { invoice, lines, payments, creditedInvoice, creditNotes, query: req.query });
+});
+
+// POST /invoices/:id/credit-note — create a draft credit note: a negated copy
+// of an issued invoice, numbered from the same sequence, referencing the
+// original (§14 correction practice). Draft-first so partial credits can be
+// made by editing lines before sending.
+router.post('/:id/credit-note', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).send('Invoice not found');
+    }
+    const original = rows[0];
+    if (original.status === 'draft') {
+      await client.query('ROLLBACK');
+      return res.status(400).send('Drafts can be edited or deleted directly — credit notes are for issued invoices.');
+    }
+    if (original.credits_invoice_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).send('Cannot create a credit note for a credit note.');
+    }
+
+    const { rows: lineRows } = await client.query(
+      'SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY sort_order',
+      [original.id]
+    );
+
+    const today = new Date().toISOString().slice(0, 10);
+    const number = await getNextInvoiceNumber('INV', today, client);
+    const viewToken = crypto.randomBytes(16).toString('hex');
+
+    // Negate quantities, keep unit prices positive (EN 16931 BR-27)
+    let subtotal = 0;
+    const creditLines = lineRows.map((l) => {
+      const qty = -Number(l.quantity);
+      const lineTotal = Math.round(qty * Number(l.unit_price) * 100) / 100;
+      subtotal += lineTotal;
+      return { ...l, quantity: qty, line_total: lineTotal };
+    });
+    subtotal = Math.round(subtotal * 100) / 100;
+    const vatAmount = original.reverse_charge
+      ? 0
+      : Math.round(subtotal * Number(original.vat_rate) / 100 * 100) / 100;
+    const total = Math.round((subtotal + vatAmount) * 100) / 100;
+
+    const { rows: created } = await client.query(`
+      INSERT INTO invoices (
+        number, client_id, client_snapshot,
+        issue_date, due_date, currency,
+        service_period_start, service_period_end,
+        vat_rate, vat_label, vat_note, reverse_charge,
+        subtotal, vat_amount, total,
+        view_token, payment_details, notes, internal_notes,
+        bank_account_id, bank_account_snapshot, reference,
+        credits_invoice_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+      RETURNING id
+    `, [
+      number, original.client_id, JSON.stringify(original.client_snapshot),
+      today, null, original.currency,
+      // The credited supply keeps the original's service date/period. When the
+      // original had none ("service date = invoice date"), pin the CN to the
+      // original's issue date — "as invoice date" would wrongly mean the CN's.
+      original.service_period_start || original.issue_date, original.service_period_end,
+      original.vat_rate, original.vat_label, original.vat_note, original.reverse_charge,
+      subtotal, vatAmount, total,
+      viewToken, null,
+      `Credit note for invoice ${original.number} dated ${original.issue_date}.`,
+      null,
+      original.bank_account_id,
+      original.bank_account_snapshot ? JSON.stringify(original.bank_account_snapshot) : null,
+      original.reference,
+      original.id,
+    ]);
+
+    for (const line of creditLines) {
+      await client.query(`
+        INSERT INTO invoice_lines (
+          invoice_id, description, detail, quantity,
+          unit_code, unit_price, line_total, sort_order
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `, [
+        created[0].id, line.description, line.detail, line.quantity,
+        line.unit_code, line.unit_price, line.line_total, line.sort_order,
+      ]);
+    }
+
+    await client.query('COMMIT');
+    res.redirect(`/invoices/${created[0].id}`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 // GET /invoices/:id/edit
@@ -375,6 +492,7 @@ router.post('/:id', async (req, res) => {
 
     const {
       client_id, currency, issue_date, due_date,
+      service_period_start, service_period_end,
       vat_rate, vat_label, vat_note, reverse_charge,
       payment_details, notes, internal_notes,
       bank_account_id, reference,
@@ -446,16 +564,18 @@ router.post('/:id', async (req, res) => {
       UPDATE invoices SET
         client_id = $1, client_snapshot = $2,
         issue_date = $3, due_date = $4, currency = $5,
-        vat_rate = $6, vat_label = $7, vat_note = $8, reverse_charge = $9,
-        subtotal = $10, vat_amount = $11, total = $12,
-        payment_details = $13, notes = $14, internal_notes = $15,
-        bank_account_id = $16, bank_account_snapshot = $17,
-        reference = $18,
+        service_period_start = $6, service_period_end = $7,
+        vat_rate = $8, vat_label = $9, vat_note = $10, reverse_charge = $11,
+        subtotal = $12, vat_amount = $13, total = $14,
+        payment_details = $15, notes = $16, internal_notes = $17,
+        bank_account_id = $18, bank_account_snapshot = $19,
+        reference = $20,
         updated_at = NOW()
-      WHERE id = $19
+      WHERE id = $21
     `, [
       client_id, JSON.stringify(clientSnapshot),
       issue_date, due_date || null, currency || 'EUR',
+      service_period_start || null, service_period_end || null,
       vatRate, vat_label || 'VAT', vat_note || null, isReverseCharge,
       subtotal, vatAmount, total,
       payment_details || null, notes || null, internal_notes || null,
@@ -515,7 +635,7 @@ router.get('/:id/pdf', async (req, res) => {
   const filePath = path.join(process.cwd(), 'data', 'invoices', rows[0].pdf_filename);
   if (!fs.existsSync(filePath)) return res.status(404).send('PDF file not found');
 
-  res.download(filePath, `Invoice-${rows[0].number}.pdf`);
+  res.download(filePath, `${rows[0].credits_invoice_id ? 'Credit-Note' : 'Invoice'}-${rows[0].number}.pdf`);
 });
 
 // POST /invoices/:id/send — send invoice email to client
@@ -539,7 +659,11 @@ router.post('/:id/send', async (req, res) => {
         );
         invoice.pdf_filename = refreshed[0].pdf_filename;
       } catch (pdfErr) {
-        console.error(`PDF generation failed for invoice ${invoice.number}, sending without PDF:`, pdfErr);
+        // The e-invoice PDF is a compliance artifact — abort rather than
+        // silently emailing without it. "Mark as sent (no email)" remains
+        // the explicit escape hatch.
+        console.error(`PDF generation failed for invoice ${invoice.number}, send aborted:`, pdfErr);
+        return res.redirect(`/invoices/${invoice.id}?error=pdf_failed_send`);
       }
     }
 
@@ -635,10 +759,13 @@ router.post('/:id/payments', async (req, res) => {
   );
   const invoiceTotal = parseFloat(invRows[0].total);
 
+  // Fraction of the total settled — sign-agnostic so credit notes (negative
+  // totals, refund payments) follow the same paid/partially_paid rules.
+  const progress = invoiceTotal === 0 ? 1 : totalPaid / invoiceTotal;
   let newStatus;
-  if (totalPaid >= invoiceTotal) {
+  if (progress >= 0.999999) {
     newStatus = 'paid';
-  } else if (totalPaid > 0) {
+  } else if (progress > 0) {
     newStatus = 'partially_paid';
   }
 
@@ -673,10 +800,12 @@ router.post('/:id/payments/:pid/delete', async (req, res) => {
   );
   const invoiceTotal = parseFloat(invRows[0].total);
 
+  // Same sign-agnostic settling math as payment recording above
+  const progress = invoiceTotal === 0 ? 1 : totalPaid / invoiceTotal;
   let newStatus = invRows[0].status;
-  if (totalPaid >= invoiceTotal) {
+  if (progress >= 0.999999) {
     newStatus = 'paid';
-  } else if (totalPaid > 0) {
+  } else if (progress > 0) {
     newStatus = 'partially_paid';
   } else if (['paid', 'partially_paid'].includes(newStatus)) {
     newStatus = 'sent';
