@@ -3,6 +3,11 @@ const { pool } = require('../db');
 
 const router = Router();
 
+// Billing units a client default may take (hours/days/months). One-off item
+// units (each/unit) are chosen per invoice line, not as a client default.
+const ALLOWED_UNITS = ['HUR', 'DAY', 'MON'];
+const normalizeUnit = (u) => (ALLOWED_UNITS.includes(u) ? u : 'DAY');
+
 // GET /clients
 router.get('/', async (req, res) => {
   const showArchived = req.query.archived === '1';
@@ -106,7 +111,7 @@ router.post('/', async (req, res) => {
     name, contact_person, email, address_line1, address_line2,
     city, postal_code, country_code, vat_number, currency,
     default_vat_rate, payment_terms_days, notes,
-    default_bank_account_id,
+    default_bank_account_id, default_unit,
   } = req.body;
 
   let additionalEmails = req.body['additional_emails[]'] || [];
@@ -117,8 +122,8 @@ router.post('/', async (req, res) => {
     INSERT INTO clients (
       name, contact_person, email, additional_emails, address_line1, address_line2,
       city, postal_code, country_code, vat_number, currency,
-      default_vat_rate, payment_terms_days, notes, default_bank_account_id
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      default_vat_rate, payment_terms_days, notes, default_bank_account_id, default_unit
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
   `, [
     name, contact_person || null, email || null, additionalEmails,
     address_line1 || null, address_line2 || null,
@@ -128,6 +133,7 @@ router.post('/', async (req, res) => {
     parseInt(payment_terms_days, 10) || 30,
     notes || null,
     default_bank_account_id ? parseInt(default_bank_account_id, 10) : null,
+    normalizeUnit(default_unit),
   ]);
 
   res.redirect('/clients');
@@ -194,7 +200,7 @@ router.post('/:id', async (req, res) => {
     name, contact_person, email, address_line1, address_line2,
     city, postal_code, country_code, vat_number, currency,
     default_vat_rate, payment_terms_days, notes,
-    default_bank_account_id,
+    default_bank_account_id, default_unit,
   } = req.body;
 
   let additionalEmails = req.body['additional_emails[]'] || [];
@@ -209,9 +215,9 @@ router.post('/:id', async (req, res) => {
       city = $7, postal_code = $8, country_code = $9,
       vat_number = $10, currency = $11,
       default_vat_rate = $12, payment_terms_days = $13,
-      notes = $14, default_bank_account_id = $15,
+      notes = $14, default_bank_account_id = $15, default_unit = $16,
       updated_at = NOW()
-    WHERE id = $16
+    WHERE id = $17
   `, [
     name, contact_person || null, email || null,
     additionalEmails,
@@ -222,6 +228,7 @@ router.post('/:id', async (req, res) => {
     parseInt(payment_terms_days, 10) || 30,
     notes || null,
     default_bank_account_id ? parseInt(default_bank_account_id, 10) : null,
+    normalizeUnit(default_unit),
     req.params.id,
   ]);
 

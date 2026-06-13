@@ -38,9 +38,21 @@ const lineTemplate = `
   </div>
 </div>`;
 
+// Current client's default billing unit (hours/days/months). New service
+// lines start here; item lines are overridden per line via the dropdown.
+function currentClientUnit() {
+  const sel = document.getElementById('client_id');
+  if (!sel) return 'DAY';
+  const opt = sel.options[sel.selectedIndex];
+  return (opt && opt.dataset.unit) || 'DAY';
+}
+
 if (addLineBtn) {
   addLineBtn.addEventListener('click', () => {
     lineItemsContainer.insertAdjacentHTML('beforeend', lineTemplate);
+    const newItem = lineItemsContainer.lastElementChild;
+    const unitSel = newItem && newItem.querySelector('select[name="unit_codes"]');
+    if (unitSel) unitSel.value = currentClientUnit();
     recalculate();
   });
 }
@@ -108,6 +120,12 @@ if (clientSelect) {
     if (opt && opt.value) {
       document.getElementById('currency').value = opt.dataset.currency || 'EUR';
       document.getElementById('vat_rate').value = opt.dataset.vat || '19.00';
+
+      // Default service-line unit follows the client (items set per line)
+      const clientUnit = opt.dataset.unit || 'DAY';
+      lineItemsContainer.querySelectorAll('select[name="unit_codes"]').forEach((sel) => {
+        sel.value = clientUnit;
+      });
 
       // Calculate due date from payment terms
       const terms = parseInt(opt.dataset.terms, 10) || 30;

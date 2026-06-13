@@ -13,6 +13,7 @@
               data-currency="<%= c.currency %>"
               data-vat="<%= c.default_vat_rate %>"
               data-terms="<%= c.payment_terms_days %>"
+              data-unit="<%= c.default_unit %>"
               data-bank-account="<%= c.default_bank_account_id || '' %>"
               <%= (estimate && estimate.client_id === c.id) || (selectedClient && selectedClient.id === c.id) ? 'selected' : '' %>
             ><%= c.name %></option>
@@ -72,7 +73,7 @@
 
     <h2>Items</h2>
     <div id="line-items">
-      <% const itemLines = lines.length ? lines : [{ description: '', detail: '', quantity: 1, unit_code: 'DAY', unit_price: '' }]; %>
+      <% const itemLines = lines.length ? lines : [{ description: '', detail: '', quantity: 1, unit_code: (selectedClient ? selectedClient.default_unit : 'DAY'), unit_price: '' }]; %>
       <% for (let i = 0; i < itemLines.length; i++) { %>
         <div class="line-item">
           <div class="line-item-fields">

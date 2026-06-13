@@ -65,6 +65,10 @@
       <span><%= Number(clientData.default_vat_rate) %>%</span>
     </div>
     <div class="meta-row">
+      <span class="meta-label">Billing unit</span>
+      <span><%= ({HUR:'Hours',DAY:'Days',MON:'Months'})[clientData.default_unit] || clientData.default_unit %></span>
+    </div>
+    <div class="meta-row">
       <span class="meta-label">Payment terms</span>
       <span><%= clientData.payment_terms_days %> days</span>
     </div>
