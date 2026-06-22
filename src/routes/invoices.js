@@ -6,7 +6,7 @@ const { pool } = require('../db');
 const { getNextInvoiceNumber, decrementIfLast } = require('../services/invoiceNumber');
 const archiver = require('archiver');
 const { sendInvoiceEmail, sendReminderEmail } = require('../services/email');
-const { generateEInvoice } = require('../services/einvoice');
+const { generateEInvoice, buildEInvoicePdfBytes } = require('../services/einvoice');
 const { buildBankAccountSnapshot } = require('../services/bankAccount');
 
 const router = Router();
@@ -436,6 +436,54 @@ router.post('/:id/credit-note', async (req, res) => {
     throw err;
   } finally {
     client.release();
+  }
+});
+
+// GET /invoices/:id/preview — owner-only preview of the public client view, for
+// ANY status incl. draft, with NO side effects: it renders the same public
+// template but suppresses the view-tracking beacon (no view_count bump, no
+// sent->viewed flip). This is the answer to "what will the client see" without
+// having to mark the invoice sent first.
+router.get('/:id/preview', async (req, res) => {
+  const { rows: invoiceRows } = await pool.query(
+    'SELECT * FROM invoices WHERE id = $1', [req.params.id]
+  );
+  if (!invoiceRows.length) return res.status(404).send('Invoice not found');
+  const invoice = invoiceRows[0];
+
+  const { rows: lines } = await pool.query(
+    'SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY sort_order', [invoice.id]
+  );
+  const { rows: profileRows } = await pool.query('SELECT * FROM business_profile WHERE id = 1');
+
+  let creditRef = null;
+  if (invoice.credits_invoice_id) {
+    const { rows } = await pool.query(
+      'SELECT number, issue_date FROM invoices WHERE id = $1', [invoice.credits_invoice_id]
+    );
+    creditRef = rows[0] || null;
+  }
+
+  res.render('public/invoice', {
+    invoice, lines, profile: profileRows[0] || {},
+    clientData: invoice.client_snapshot, creditRef, preview: true,
+  });
+});
+
+// GET /invoices/:id/preview/pdf — owner-only inline PDF preview, any status,
+// generated on the fly and NOT persisted (never sets pdf_filename), so previewing
+// a draft can't leave a stale PDF that a later Send would reuse.
+router.get('/:id/preview/pdf', async (req, res) => {
+  const { rows } = await pool.query('SELECT id, number FROM invoices WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).send('Invoice not found');
+  try {
+    const { bytes } = await buildEInvoicePdfBytes(rows[0].id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Invoice-${rows[0].number}-preview.pdf"`);
+    res.send(Buffer.from(bytes));
+  } catch (err) {
+    console.error(`Preview PDF failed for invoice ${rows[0].number}:`, err);
+    res.status(500).send('Could not generate preview PDF. ' + err.message);
   }
 });
 

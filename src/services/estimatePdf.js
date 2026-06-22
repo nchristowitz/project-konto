@@ -4,7 +4,10 @@ const { pool } = require('../db');
 const { generateInvoicePdf } = require('./pdf');
 const { formatPaymentDetails } = require('./bankAccount');
 
-async function generateEstimatePdf(estimateId) {
+// Build the estimate PDF bytes WITHOUT persisting them. Shared by
+// generateEstimatePdf (which then writes to disk + sets pdf_filename) and the
+// owner-only PDF preview (which streams the bytes and never persists).
+async function buildEstimatePdfBytes(estimateId) {
   const { rows: estimateRows } = await pool.query(
     'SELECT * FROM estimates WHERE id = $1', [estimateId]
   );
@@ -38,6 +41,12 @@ async function generateEstimatePdf(estimateId) {
     dueDateLabel: 'Valid until:',
   });
 
+  return { bytes: pdfBytes, estimate };
+}
+
+async function generateEstimatePdf(estimateId) {
+  const { bytes: pdfBytes, estimate } = await buildEstimatePdfBytes(estimateId);
+
   // Write to data/estimates/{year}/{number}.pdf
   const year = new Date(estimate.issue_date).getFullYear().toString();
   const safeNumber = estimate.number.replace(/[^a-zA-Z0-9\-]/g, '');
@@ -56,4 +65,4 @@ async function generateEstimatePdf(estimateId) {
   return { filename, path: filePath };
 }
 
-module.exports = { generateEstimatePdf };
+module.exports = { generateEstimatePdf, buildEstimatePdfBytes };

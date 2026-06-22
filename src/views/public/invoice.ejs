@@ -148,7 +148,7 @@
     <% } %>
   </div>
 
-  <% if (invoice.status !== 'cancelled') { %>
+  <% if (invoice.status !== 'cancelled' && !locals.preview) { %>
   <script>
     setTimeout(function() {
       fetch('/api/views/<%= invoice.view_token %>', {

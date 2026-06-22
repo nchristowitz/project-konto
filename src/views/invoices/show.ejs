@@ -43,6 +43,8 @@
         <button type="submit" data-variant="secondary"><%= invoice.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
       </form>
     <% } %>
+    <a href="/invoices/<%= invoice.id %>/preview" class="button" data-variant="secondary" target="_blank">Preview</a>
+    <a href="/invoices/<%= invoice.id %>/preview/pdf" class="button" data-variant="secondary" target="_blank">Preview PDF</a>
     <a href="/i/<%= invoice.view_token %>" class="button" data-variant="secondary" target="_blank">Public link</a>
   </div>
 </div>

@@ -218,7 +218,12 @@ function formatDate(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-async function generateEInvoice(invoiceId) {
+// Build the Factur-X PDF/A bytes for an invoice WITHOUT persisting them (steps
+// 1-4). Shared by generateEInvoice (which then writes to disk + sets
+// pdf_filename) and the owner-only PDF preview (which streams the bytes and
+// never touches pdf_filename, so a draft preview can't leave a stale PDF that a
+// later Send would reuse).
+async function buildEInvoicePdfBytes(invoiceId) {
   // 1. Query invoice, lines, business_profile
   const { rows: invoiceRows } = await pool.query(
     'SELECT * FROM invoices WHERE id = $1', [invoiceId]
@@ -273,6 +278,12 @@ async function generateEInvoice(invoiceId) {
     },
   });
 
+  return { bytes: result, invoice };
+}
+
+async function generateEInvoice(invoiceId) {
+  const { bytes: result, invoice } = await buildEInvoicePdfBytes(invoiceId);
+
   // 5. Write to disk
   const year = new Date(invoice.issue_date).getFullYear().toString();
   const filename = `${year}/${invoice.number}.pdf`;
@@ -291,4 +302,4 @@ async function generateEInvoice(invoiceId) {
   return { filename, path: filePath };
 }
 
-module.exports = { generateEInvoice };
+module.exports = { generateEInvoice, buildEInvoicePdfBytes };

@@ -5,7 +5,7 @@ const fs = require('fs');
 const { pool } = require('../db');
 const { getNextInvoiceNumber } = require('../services/invoiceNumber');
 const { sendEstimateEmail } = require('../services/email');
-const { generateEstimatePdf } = require('../services/estimatePdf');
+const { generateEstimatePdf, buildEstimatePdfBytes } = require('../services/estimatePdf');
 const { buildBankAccountSnapshot, formatPaymentDetails } = require('../services/bankAccount');
 
 const router = Router();
@@ -244,6 +244,42 @@ router.get('/:id', async (req, res) => {
   );
 
   res.render('estimates/show', { estimate, lines, query: req.query });
+});
+
+// GET /estimates/:id/preview — owner-only preview of the public client view, any
+// status incl. draft, side-effect-free: suppresses the view-tracking beacon and
+// the accept button is rendered inert so the owner can't accept their own quote.
+router.get('/:id/preview', async (req, res) => {
+  const { rows: estimateRows } = await pool.query(
+    'SELECT * FROM estimates WHERE id = $1', [req.params.id]
+  );
+  if (!estimateRows.length) return res.status(404).send('Estimate not found');
+  const estimate = estimateRows[0];
+
+  const { rows: lines } = await pool.query(
+    'SELECT * FROM estimate_lines WHERE estimate_id = $1 ORDER BY sort_order', [estimate.id]
+  );
+  const { rows: profileRows } = await pool.query('SELECT * FROM business_profile WHERE id = 1');
+
+  res.render('public/estimate', {
+    estimate, lines, profile: profileRows[0] || {},
+    clientData: estimate.client_snapshot, query: req.query, preview: true,
+  });
+});
+
+// GET /estimates/:id/preview/pdf — owner-only inline PDF preview, not persisted.
+router.get('/:id/preview/pdf', async (req, res) => {
+  const { rows } = await pool.query('SELECT id, number FROM estimates WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).send('Estimate not found');
+  try {
+    const { bytes } = await buildEstimatePdfBytes(rows[0].id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Estimate-${rows[0].number}-preview.pdf"`);
+    res.send(Buffer.from(bytes));
+  } catch (err) {
+    console.error(`Preview PDF failed for estimate ${rows[0].number}:`, err);
+    res.status(500).send('Could not generate preview PDF. ' + err.message);
+  }
 });
 
 // GET /estimates/:id/duplicate — pre-filled "New estimate" form seeded from an

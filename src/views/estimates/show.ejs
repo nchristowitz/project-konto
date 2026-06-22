@@ -32,6 +32,8 @@
     <form method="POST" action="/estimates/<%= estimate.id %>/pdf" class="inline-form">
       <button type="submit" data-variant="secondary"><%= estimate.pdf_filename ? 'Regenerate PDF' : 'Generate PDF' %></button>
     </form>
+    <a href="/estimates/<%= estimate.id %>/preview" class="button" data-variant="secondary" target="_blank">Preview</a>
+    <a href="/estimates/<%= estimate.id %>/preview/pdf" class="button" data-variant="secondary" target="_blank">Preview PDF</a>
     <% if (estimate.status !== 'draft') { %>
       <a href="/e/<%= estimate.view_token %>" class="button" data-variant="secondary" target="_blank">Public link</a>
     <% } %>

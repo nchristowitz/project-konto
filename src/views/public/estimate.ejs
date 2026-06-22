@@ -142,7 +142,7 @@
               I have read and accept the terms and conditions
             </label>
           <% } %>
-          <button type="submit" class="accept-btn" id="accept-btn">Accept Estimate</button>
+          <button type="submit" class="accept-btn" id="accept-btn"<%= locals.preview ? ' disabled' : '' %>>Accept Estimate</button>
         </form>
       </div>
     <% } else if (estimate.status === 'accepted') { %>
@@ -164,7 +164,7 @@
     <% } %>
   </div>
 
-  <% if (!['expired', 'rejected', 'converted'].includes(estimate.status)) { %>
+  <% if (!['expired', 'rejected', 'converted'].includes(estimate.status) && !locals.preview) { %>
   <script>
     setTimeout(function() {
       fetch('/api/views/estimate/<%= estimate.view_token %>', {
@@ -175,7 +175,7 @@
   </script>
   <% } %>
 
-  <% if (estimate.terms_text && ['sent', 'viewed'].includes(estimate.status)) { %>
+  <% if (estimate.terms_text && ['sent', 'viewed'].includes(estimate.status) && !locals.preview) { %>
   <script>
     var cb = document.getElementById('accept-terms');
     var btn = document.getElementById('accept-btn');
