@@ -233,6 +233,9 @@
 <div class="card">
   <h2>Actions</h2>
   <div class="form-actions">
+    <% if (!invoice.credits_invoice_id) { %>
+      <a href="/invoices/<%= invoice.id %>/duplicate" class="button" data-variant="secondary">Duplicate</a>
+    <% } %>
     <% if (invoice.status === 'draft') { %>
       <form method="POST" action="/invoices/<%= invoice.id %>/send" class="inline-form">
         <button type="submit">Send to client</button>

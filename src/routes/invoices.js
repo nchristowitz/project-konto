@@ -439,6 +439,80 @@ router.post('/:id/credit-note', async (req, res) => {
   }
 });
 
+// GET /invoices/:id/duplicate — open a pre-filled "New invoice" form seeded from
+// an existing one (any status). Nothing is written and no number is minted until
+// the user saves, so abandoning a duplicate costs nothing and never burns a gap
+// in the sequence. Built for the monthly-recurring case (e.g. Metalab) where last
+// month's invoice is the fastest starting point — tweak what changed (descriptions,
+// PO#, dates) and save. The prefill object deliberately has no `id`, so the shared
+// form renders in "new" mode and POSTs to /invoices.
+router.get('/:id/duplicate', async (req, res) => {
+  const { rows: srcRows } = await pool.query(
+    'SELECT * FROM invoices WHERE id = $1', [req.params.id]
+  );
+  if (!srcRows.length) return res.status(404).send('Invoice not found');
+  const src = srcRows[0];
+
+  // A credit note is a negated correction of a specific invoice — duplicating it
+  // into a fresh invoice makes no sense. Corrections go through "Issue credit note".
+  if (src.credits_invoice_id) {
+    const msg = 'Credit notes cannot be duplicated. Use "Issue credit note" on the original invoice instead.';
+    return res.redirect(`/invoices/${src.id}?error=${encodeURIComponent(msg)}`);
+  }
+
+  const { rows: lines } = await pool.query(
+    'SELECT * FROM invoice_lines WHERE invoice_id = $1 ORDER BY sort_order',
+    [src.id]
+  );
+  const { rows: clients } = await pool.query(
+    'SELECT c.*, c.default_bank_account_id FROM clients c WHERE c.archived = FALSE ORDER BY c.name'
+  );
+  const { rows: settingsRows } = await pool.query('SELECT * FROM settings WHERE id = 1');
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT * FROM bank_accounts ORDER BY is_default DESC, label'
+  );
+
+  // Fresh dates: issue today; due today + the client's payment terms (same rule
+  // as estimate→invoice convert). The service period is copied as a starting
+  // point — it usually shifts month to month, so it's the field most likely to
+  // need editing.
+  const { rows: clientRows } = await pool.query(
+    'SELECT payment_terms_days FROM clients WHERE id = $1', [src.client_id]
+  );
+  const terms = clientRows[0]?.payment_terms_days || 30;
+  const today = new Date();
+  const dueDate = new Date(today);
+  dueDate.setDate(dueDate.getDate() + terms);
+
+  const prefill = {
+    client_id: src.client_id,
+    currency: src.currency,
+    issue_date: today.toISOString().slice(0, 10),
+    due_date: dueDate.toISOString().slice(0, 10),
+    service_period_start: src.service_period_start,
+    service_period_end: src.service_period_end,
+    vat_rate: src.vat_rate,
+    vat_label: src.vat_label,
+    vat_note: src.vat_note,
+    reverse_charge: src.reverse_charge,
+    payment_details: src.payment_details,
+    notes: src.notes,
+    internal_notes: src.internal_notes,
+    bank_account_id: src.bank_account_id,
+    reference: src.reference,
+  };
+
+  res.render('invoices/form', {
+    invoice: prefill,
+    lines,
+    clients,
+    settings: settingsRows[0],
+    selectedClient: null,
+    bankAccounts,
+    duplicateSource: src.number,
+  });
+});
+
 // GET /invoices/:id/edit
 router.get('/:id/edit', async (req, res) => {
   const { rows: invoiceRows } = await pool.query(

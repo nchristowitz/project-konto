@@ -1,8 +1,8 @@
 <%- include('../header') %>
-<h1><%= estimate ? 'Edit Estimate ' + estimate.number : 'New Estimate' %></h1>
+<h1><%= estimate && estimate.id ? 'Edit Estimate ' + estimate.number : (locals.duplicateSource ? 'New Estimate (copy of ' + locals.duplicateSource + ')' : 'New Estimate') %></h1>
 
 <div class="card">
-  <form method="POST" action="<%= estimate ? '/estimates/' + estimate.id : '/estimates' %>" id="invoice-form">
+  <form method="POST" action="<%= estimate && estimate.id ? '/estimates/' + estimate.id : '/estimates' %>" id="invoice-form">
     <div class="form-grid">
       <div class="form-group">
         <label for="client_id">Client</label>

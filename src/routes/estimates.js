@@ -246,6 +246,56 @@ router.get('/:id', async (req, res) => {
   res.render('estimates/show', { estimate, lines, query: req.query });
 });
 
+// GET /estimates/:id/duplicate — pre-filled "New estimate" form seeded from an
+// existing one. Same approach as invoice duplicate: nothing is written and no
+// number is minted until the user saves.
+router.get('/:id/duplicate', async (req, res) => {
+  const { rows: srcRows } = await pool.query(
+    'SELECT * FROM estimates WHERE id = $1', [req.params.id]
+  );
+  if (!srcRows.length) return res.status(404).send('Estimate not found');
+  const src = srcRows[0];
+
+  const { rows: lines } = await pool.query(
+    'SELECT * FROM estimate_lines WHERE estimate_id = $1 ORDER BY sort_order',
+    [src.id]
+  );
+  const { rows: clients } = await pool.query(
+    'SELECT c.*, c.default_bank_account_id FROM clients c WHERE c.archived = FALSE ORDER BY c.name'
+  );
+  const { rows: settingsRows } = await pool.query('SELECT * FROM settings WHERE id = 1');
+  const { rows: bankAccounts } = await pool.query(
+    'SELECT * FROM bank_accounts ORDER BY is_default DESC, label'
+  );
+
+  const prefill = {
+    client_id: src.client_id,
+    currency: src.currency,
+    issue_date: new Date().toISOString().slice(0, 10),
+    // Leave validity blank — a copied "valid until" date would already be stale.
+    valid_until: null,
+    vat_rate: src.vat_rate,
+    vat_label: src.vat_label,
+    vat_note: src.vat_note,
+    reverse_charge: src.reverse_charge,
+    terms_text: src.terms_text,
+    notes: src.notes,
+    internal_notes: src.internal_notes,
+    bank_account_id: src.bank_account_id,
+    reference: src.reference,
+  };
+
+  res.render('estimates/form', {
+    estimate: prefill,
+    lines,
+    clients,
+    settings: settingsRows[0],
+    selectedClient: null,
+    bankAccounts,
+    duplicateSource: src.number,
+  });
+});
+
 // GET /estimates/:id/edit
 router.get('/:id/edit', async (req, res) => {
   const { rows: estimateRows } = await pool.query(
