@@ -39,6 +39,7 @@ async function buildEstimatePdfBytes(estimateId) {
     client,
     documentTitle: 'ESTIMATE',
     dueDateLabel: 'Valid until:',
+    statusWatermark: estimate.is_test ? 'TEST' : null,
   });
 
   return { bytes: pdfBytes, estimate };

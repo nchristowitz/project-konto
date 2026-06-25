@@ -15,6 +15,9 @@
     <% } %>
   </div>
   <div class="invoice-document">
+    <% if (estimate.is_test) { %>
+      <div class="inv-watermark inv-watermark-test">TEST</div>
+    <% } %>
     <div class="inv-header">
       <div class="inv-from">
         <% if (profile.name) { %>

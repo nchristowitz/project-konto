@@ -30,7 +30,7 @@
   <div class="notice notice-error"><%= query.error %></div>
 <% } %>
 <div class="page-header">
-  <h1><%= invoice.credits_invoice_id ? 'Credit Note' : 'Invoice' %> <%= invoice.number %></h1>
+  <h1><%= invoice.credits_invoice_id ? 'Credit Note' : 'Invoice' %> <%= invoice.number %><% if (invoice.is_test) { %> <span class="badge-test">TEST</span><% } %></h1>
   <div class="header-actions">
     <% if (invoice.status === 'draft') { %>
       <a href="/invoices/<%= invoice.id %>/edit" class="button">Edit</a>

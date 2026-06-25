@@ -17,6 +17,7 @@ router.get('/', async (req, res) => {
     WHERE EXTRACT(YEAR FROM issue_date) = $1
       AND status != 'cancelled'
       AND (status = 'paid' OR amount_paid > 0)
+      AND NOT is_test
     GROUP BY currency
     ORDER BY currency
   `, [year]);
@@ -28,6 +29,7 @@ router.get('/', async (req, res) => {
     FROM invoices
     WHERE status NOT IN ('cancelled', 'paid', 'draft')
       AND (due_date >= CURRENT_DATE OR due_date IS NULL)
+      AND NOT is_test
     GROUP BY currency
     ORDER BY currency
   `);
@@ -38,6 +40,7 @@ router.get('/', async (req, res) => {
     FROM invoices
     WHERE status NOT IN ('cancelled', 'paid', 'draft')
       AND due_date < CURRENT_DATE
+      AND NOT is_test
     GROUP BY currency
     ORDER BY currency
   `);
@@ -84,6 +87,7 @@ router.get('/', async (req, res) => {
       COUNT(*) FILTER (WHERE status NOT IN ('cancelled', 'paid', 'draft') AND due_date < CURRENT_DATE) AS overdue,
       COUNT(*) FILTER (WHERE status = 'paid') AS paid
     FROM invoices
+    WHERE NOT is_test
   `);
   const counts = statusCounts[0];
 
@@ -92,6 +96,7 @@ router.get('/', async (req, res) => {
     SELECT i.*, c.name AS client_name
     FROM invoices i JOIN clients c ON i.client_id = c.id
     WHERE i.status NOT IN ('cancelled', 'draft')
+      AND NOT i.is_test
     ORDER BY i.issue_date DESC
     LIMIT 20
   `);
@@ -107,6 +112,7 @@ router.get('/', async (req, res) => {
     SELECT e.*, c.name AS client_name
     FROM estimates e JOIN clients c ON e.client_id = c.id
     WHERE e.status = 'accepted'
+      AND NOT e.is_test
     ORDER BY e.accepted_at DESC
   `);
 

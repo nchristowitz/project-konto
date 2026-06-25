@@ -53,7 +53,7 @@
         <% for (const inv of invoices) { %>
           <tr>
             <td><input type="checkbox" name="invoice_ids" value="<%= inv.id %>" class="row-check"></td>
-            <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>"><%= inv.number %></a></td>
+            <td data-value="<%= inv.number %>"><a href="/invoices/<%= inv.id %>"><%= inv.number %></a><% if (inv.is_test) { %> <span class="badge-test">TEST</span><% } %></td>
             <td data-value="<%= inv.client_name %>"><%= inv.client_name %></td>
             <td data-value="<%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %>"><%= inv.issue_date ? new Date(inv.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td data-value="<%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %>"><%= inv.due_date ? new Date(inv.due_date).toISOString().slice(0, 10) : '' %></td>

@@ -22,6 +22,7 @@ function startReminderCron() {
         FROM invoices i
         JOIN clients c ON i.client_id = c.id
         WHERE i.status IN ('sent', 'viewed')
+          AND NOT i.is_test
           AND i.due_date < CURRENT_DATE
           AND i.reminder_count < $1
           AND (

@@ -38,7 +38,7 @@
         <% for (const client of clients) { %>
           <tr>
             <td><input type="checkbox" name="client_ids" value="<%= client.id %>" class="client-check"></td>
-            <td data-value="<%= client.name %>"><a href="/clients/<%= client.id %>"><%= client.name %></a></td>
+            <td data-value="<%= client.name %>"><a href="/clients/<%= client.id %>"><%= client.name %></a><% if (client.is_test) { %> <span class="badge-test">TEST</span><% } %></td>
             <td data-value="<%= client.email || '' %>"><%= client.email || '' %></td>
             <td class="text-right" data-value="<%= Number(client.revenue) || 0 %>"><% if (Number(client.revenue) > 0) { %><%= fmt(client.revenue) %> <%= client.currency %><% } else { %>—<% } %></td>
             <td class="text-right" data-value="<%= Number(client.outstanding) || 0 %>"><% if (Number(client.outstanding) > 0) { %><%= fmt(client.outstanding) %> <%= client.currency %><% } else { %>—<% } %></td>

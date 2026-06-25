@@ -17,6 +17,7 @@ router.get('/', async (req, res) => {
   const { rows: yearRows } = await pool.query(`
     SELECT DISTINCT EXTRACT(YEAR FROM issue_date)::int AS year
     FROM invoices WHERE status NOT IN ('draft', 'cancelled')
+      AND NOT is_test
     ORDER BY year DESC
   `);
 
@@ -63,6 +64,7 @@ router.get('/export/invoices.csv', async (req, res) => {
     LEFT JOIN invoices o ON o.id = i.credits_invoice_id
     WHERE i.status NOT IN ('draft', 'cancelled')
       AND EXTRACT(YEAR FROM i.issue_date) = $1
+      AND NOT i.is_test
     ORDER BY i.number
   `, [year]);
 
@@ -92,6 +94,7 @@ router.get('/export/payments.csv', async (req, res) => {
     FROM payments p
     JOIN invoices i ON i.id = p.invoice_id
     WHERE EXTRACT(YEAR FROM p.paid_at) = $1
+      AND NOT i.is_test
     ORDER BY p.paid_at, i.number
   `, [year]);
 

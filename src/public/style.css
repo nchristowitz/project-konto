@@ -295,6 +295,21 @@ textarea { resize: vertical; }
   text-decoration: line-through;
 }
 
+/* TEST badge — marks sandbox (test-client) documents in lists and headers */
+.badge-test {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-2);
+  font-size: var(--text-8);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: var(--radius-full);
+  background: light-dark(#ffedd5, #431407);
+  color: light-dark(#c2410c, #fdba74);
+  vertical-align: middle;
+}
+
 /* ============================================================
    Line-item editor (invoice/estimate forms)
    ============================================================ */
@@ -810,6 +825,7 @@ textarea { resize: vertical; }
 
 .inv-watermark-paid { color: #16a34a; }
 .inv-watermark-cancelled { color: #dc2626; }
+.inv-watermark-test { color: #d97706; }
 
 /* Estimate acceptance section (below the document) */
 .acceptance-wrap {

@@ -22,6 +22,7 @@ router.get('/', async (req, res) => {
         SUM(amount_paid) AS revenue
       FROM invoices
       WHERE status != 'cancelled'
+        AND NOT is_test
       GROUP BY client_id
     ) r ON r.client_id = c.id
     LEFT JOIN (
@@ -29,6 +30,7 @@ router.get('/', async (req, res) => {
         SUM(total - amount_paid) AS outstanding
       FROM invoices
       WHERE status NOT IN ('paid', 'cancelled', 'draft')
+        AND NOT is_test
       GROUP BY client_id
     ) o ON o.client_id = c.id
     WHERE c.archived = $1
@@ -122,8 +124,8 @@ router.post('/', async (req, res) => {
     INSERT INTO clients (
       name, contact_person, email, additional_emails, address_line1, address_line2,
       city, postal_code, country_code, vat_number, currency,
-      default_vat_rate, payment_terms_days, notes, default_bank_account_id, default_unit
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      default_vat_rate, payment_terms_days, notes, default_bank_account_id, default_unit, is_test
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
   `, [
     name, contact_person || null, email || null, additionalEmails,
     address_line1 || null, address_line2 || null,
@@ -134,6 +136,7 @@ router.post('/', async (req, res) => {
     notes || null,
     default_bank_account_id ? parseInt(default_bank_account_id, 10) : null,
     normalizeUnit(default_unit),
+    req.body.is_test === 'on',
   ]);
 
   res.redirect('/clients');
@@ -169,7 +172,7 @@ router.get('/:id', async (req, res) => {
       COALESCE(SUM(amount_paid), 0) AS revenue,
       COALESCE(SUM(CASE WHEN status NOT IN ('paid','cancelled','draft') THEN total - amount_paid ELSE 0 END), 0) AS outstanding
     FROM invoices
-    WHERE client_id = $1 AND status != 'cancelled'
+    WHERE client_id = $1 AND status != 'cancelled' AND NOT is_test
   `, [client.id]);
 
   const stats = {
@@ -231,6 +234,9 @@ router.post('/:id', async (req, res) => {
     normalizeUnit(default_unit),
     req.params.id,
   ]);
+
+  // Set is_test separately so the main UPDATE's positional params stay unshifted.
+  await pool.query('UPDATE clients SET is_test = $1 WHERE id = $2', [req.body.is_test === 'on', req.params.id]);
 
   res.redirect(`/clients/${req.params.id}`);
 });

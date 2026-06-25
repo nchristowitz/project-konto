@@ -46,7 +46,7 @@
         <% for (const est of estimates) { %>
           <tr>
             <td><input type="checkbox" name="estimate_ids" value="<%= est.id %>" class="row-check"></td>
-            <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>"><%= est.number %></a></td>
+            <td data-value="<%= est.number %>"><a href="/estimates/<%= est.id %>"><%= est.number %></a><% if (est.is_test) { %> <span class="badge-test">TEST</span><% } %></td>
             <td data-value="<%= est.client_name %>"><%= est.client_name %></td>
             <td data-value="<%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %>"><%= est.issue_date ? new Date(est.issue_date).toISOString().slice(0, 10) : '' %></td>
             <td data-value="<%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %>"><%= est.valid_until ? new Date(est.valid_until).toISOString().slice(0, 10) : '' %></td>

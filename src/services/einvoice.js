@@ -254,7 +254,8 @@ async function buildEInvoicePdfBytes(invoiceId) {
   // 2. Generate visual PDF. No PAID watermark on credit notes — "paid" there
   // means the refund is settled, which the watermark would misstate.
   let statusWatermark = null;
-  if (invoice.status === 'paid' && !creditRef) statusWatermark = 'PAID';
+  if (invoice.is_test) statusWatermark = 'TEST';
+  else if (invoice.status === 'paid' && !creditRef) statusWatermark = 'PAID';
   else if (invoice.status === 'cancelled') statusWatermark = 'CANCELLED';
   const pdfBytes = await generateInvoicePdf({
     invoice, lines: lineRows, profile, client, statusWatermark,

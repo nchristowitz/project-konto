@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db');
-const { getNextInvoiceNumber, decrementIfLast } = require('../services/invoiceNumber');
+const { getNextInvoiceNumber, decrementIfLast, getNextTestNumber } = require('../services/invoiceNumber');
 const archiver = require('archiver');
 const { sendInvoiceEmail, sendReminderEmail } = require('../services/email');
 const { generateEInvoice, buildEInvoicePdfBytes } = require('../services/einvoice');
@@ -147,7 +147,12 @@ router.post('/', async (req, res) => {
     // Pass the txn client so a failed INSERT rolls back the sequence increment
     // (keeps numbering gapless for tax-audit purposes). Year is derived from
     // issue_date, not wall clock, so a backdated invoice lands in the right year.
-    const number = await getNextInvoiceNumber('INV', issue_date, client);
+    // Test-client documents draw from the throwaway TEST counter, never the
+    // gapless INV sequence, so they can be made and deleted freely.
+    const isTest = clientData.is_test === true;
+    const number = isTest
+      ? await getNextTestNumber(client)
+      : await getNextInvoiceNumber('INV', issue_date, client);
     const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Insert invoice
@@ -174,6 +179,12 @@ router.post('/', async (req, res) => {
     ]);
 
     const invoiceId = invoiceRows[0].id;
+
+    // Sandbox flag — keeps it out of numbering reclaim, revenue, exports, reminders.
+    // Set post-insert to avoid threading is_test through the INSERT column list.
+    if (isTest) {
+      await client.query('UPDATE invoices SET is_test = TRUE WHERE id = $1', [invoiceId]);
+    }
 
     // Insert line items
     for (const line of lineItems) {
@@ -275,7 +286,7 @@ router.post('/batch', async (req, res) => {
     `, [numericIds]);
   } else if (action === 'delete') {
     const { rows } = await pool.query(
-      `SELECT id, pdf_filename FROM invoices WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+      `SELECT id, pdf_filename FROM invoices WHERE id = ANY($1) AND (status IN ('draft', 'cancelled') OR is_test)`,
       [numericIds]
     );
     for (const inv of rows) {
@@ -370,7 +381,11 @@ router.post('/:id/credit-note', async (req, res) => {
     );
 
     const today = new Date().toISOString().slice(0, 10);
-    const number = await getNextInvoiceNumber('INV', today, client);
+    // A credit note of a test invoice is itself a test document.
+    const isTest = original.is_test === true;
+    const number = isTest
+      ? await getNextTestNumber(client)
+      : await getNextInvoiceNumber('INV', today, client);
     const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Negate quantities, keep unit prices positive (EN 16931 BR-27)
@@ -416,6 +431,10 @@ router.post('/:id/credit-note', async (req, res) => {
       original.reference,
       original.id,
     ]);
+
+    if (isTest) {
+      await client.query('UPDATE invoices SET is_test = TRUE WHERE id = $1', [created[0].id]);
+    }
 
     for (const line of creditLines) {
       await client.query(`
@@ -947,7 +966,9 @@ router.post('/:id/delete', async (req, res) => {
   if (!rows.length) return res.status(404).send('Invoice not found');
   const invoice = rows[0];
 
-  if (invoice.status !== 'draft') {
+  // Drafts are deletable; so are test documents at any status (they're not GoBD
+  // records). Real sent/paid invoices stay immutable.
+  if (invoice.status !== 'draft' && !invoice.is_test) {
     return res.status(400).send('Only draft invoices can be deleted');
   }
 
@@ -957,11 +978,24 @@ router.post('/:id/delete', async (req, res) => {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 
-  // Try to decrement sequence if this was the last number
-  const yearPrefix = invoice.number.slice(0, 2);
-  const num = parseInt(invoice.number.slice(2), 10);
-  const fullYear = 2000 + parseInt(yearPrefix, 10);
-  await decrementIfLast('INV', fullYear, num);
+  // Try to decrement sequence if this was the last number. Real invoices only —
+  // test docs use the throwaway TEST counter (TEST-N has no yyNNNN to parse).
+  if (!invoice.is_test) {
+    const yearPrefix = invoice.number.slice(0, 2);
+    const num = parseInt(invoice.number.slice(2), 10);
+    const fullYear = 2000 + parseInt(yearPrefix, 10);
+    await decrementIfLast('INV', fullYear, num);
+  }
+
+  // Test docs stay freely deletable even when convert-linked: clear the
+  // estimate's back-reference first. Real converted invoices keep the FK
+  // protection (the 23503 catch below).
+  if (invoice.is_test) {
+    // Clear the non-cascading references TO this test invoice (convert + credit-note
+    // links) so it deletes at any status. email_log rows cascade (migration 012).
+    await pool.query('UPDATE estimates SET converted_invoice_id = NULL WHERE converted_invoice_id = $1', [req.params.id]);
+    await pool.query('UPDATE invoices SET credits_invoice_id = NULL WHERE credits_invoice_id = $1', [req.params.id]);
+  }
 
   // Delete invoice (lines cascade)
   try {

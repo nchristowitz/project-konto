@@ -41,6 +41,22 @@ async function getNextInvoiceNumber(prefix = 'INV', issueDate, executor = pool) 
   return `${yy}${String(num).padStart(4, '0')}`;
 }
 
+// Test-mode documents draw from a dedicated, non-gapless counter so they never
+// touch the real INV/EST tax sequence. Format: TEST-1, TEST-2, ... shared across
+// test invoices and test estimates so a given TEST-N is unambiguous. Gaps don't
+// matter (these aren't tax documents), so there's no reclaim on delete.
+async function getNextTestNumber(executor = pool) {
+  const result = await executor.query(`
+    INSERT INTO invoice_sequences (prefix, year, next_number)
+    VALUES ('TEST', 0, 2)
+    ON CONFLICT (prefix, year)
+    DO UPDATE SET next_number = invoice_sequences.next_number + 1
+    RETURNING next_number - 1 AS current_number
+  `);
+  const num = result.rows[0].current_number || 1;
+  return `TEST-${num}`;
+}
+
 async function decrementIfLast(prefix, year, number) {
   const { rows } = await pool.query(
     'SELECT next_number FROM invoice_sequences WHERE prefix = $1 AND year = $2',
@@ -54,4 +70,4 @@ async function decrementIfLast(prefix, year, number) {
   }
 }
 
-module.exports = { getNextInvoiceNumber, decrementIfLast };
+module.exports = { getNextInvoiceNumber, decrementIfLast, getNextTestNumber };

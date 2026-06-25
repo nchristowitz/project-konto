@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db');
-const { getNextInvoiceNumber } = require('../services/invoiceNumber');
+const { getNextInvoiceNumber, getNextTestNumber } = require('../services/invoiceNumber');
 const { sendEstimateEmail } = require('../services/email');
 const { generateEstimatePdf, buildEstimatePdfBytes } = require('../services/estimatePdf');
 const { buildBankAccountSnapshot, formatPaymentDetails } = require('../services/bankAccount');
@@ -142,8 +142,11 @@ router.post('/', async (req, res) => {
 
     // Generate estimate number and token. Sequence increment runs inside
     // the transaction so a failed INSERT rolls it back. Year from issue_date.
-    const seqNumber = await getNextInvoiceNumber('EST', issue_date, dbClient);
-    const number = `E-${seqNumber}`;
+    // Test-client estimates draw from the throwaway TEST counter, not the EST sequence.
+    const isTest = clientData.is_test === true;
+    const number = isTest
+      ? await getNextTestNumber(dbClient)
+      : `E-${await getNextInvoiceNumber('EST', issue_date, dbClient)}`;
     const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Insert estimate
@@ -168,6 +171,10 @@ router.post('/', async (req, res) => {
     ]);
 
     const estimateId = estimateRows[0].id;
+
+    if (isTest) {
+      await dbClient.query('UPDATE estimates SET is_test = TRUE WHERE id = $1', [estimateId]);
+    }
 
     // Insert line items
     for (const line of lineItems) {
@@ -209,7 +216,7 @@ router.post('/batch', async (req, res) => {
     `, [numericIds]);
   } else if (action === 'delete') {
     const { rows } = await pool.query(
-      `SELECT id, pdf_filename FROM estimates WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+      `SELECT id, pdf_filename FROM estimates WHERE id = ANY($1) AND (status IN ('draft', 'cancelled') OR is_test)`,
       [numericIds]
     );
     for (const est of rows) {
@@ -219,8 +226,11 @@ router.post('/batch', async (req, res) => {
       }
     }
     if (rows.length) {
+      // Test estimates may be convert-linked; clear the invoice back-reference so
+      // the bulk delete isn't FK-blocked (real draft/cancelled estimates have none).
+      await pool.query('UPDATE invoices SET estimate_id = NULL WHERE estimate_id = ANY($1)', [rows.map((r) => r.id)]);
       await pool.query(
-        `DELETE FROM estimates WHERE id = ANY($1) AND status IN ('draft', 'cancelled')`,
+        `DELETE FROM estimates WHERE id = ANY($1) AND (status IN ('draft', 'cancelled') OR is_test)`,
         [numericIds]
       );
     }
@@ -611,7 +621,11 @@ router.post('/:id/convert', async (req, res) => {
     dueDate.setDate(dueDate.getDate() + terms);
 
     // Generate invoice number and token. Sequence increment is transaction-local.
-    const invoiceNumber = await getNextInvoiceNumber('INV', issueDate, dbClient);
+    // A converted test estimate produces a test invoice (test numbering, excluded).
+    const isTest = estimate.is_test === true;
+    const invoiceNumber = isTest
+      ? await getNextTestNumber(dbClient)
+      : await getNextInvoiceNumber('INV', issueDate, dbClient);
     const viewToken = crypto.randomBytes(16).toString('hex');
 
     // Generate payment_details from bank account snapshot
@@ -643,6 +657,10 @@ router.post('/:id/convert', async (req, res) => {
     ]);
 
     const invoiceId = invoiceRows[0].id;
+
+    if (isTest) {
+      await dbClient.query('UPDATE invoices SET is_test = TRUE WHERE id = $1', [invoiceId]);
+    }
 
     // Copy line items
     for (const line of estLines) {
@@ -682,7 +700,7 @@ router.post('/:id/delete', async (req, res) => {
     'SELECT * FROM estimates WHERE id = $1', [req.params.id]
   );
   if (!rows.length) return res.status(404).send('Estimate not found');
-  if (rows[0].status !== 'draft') return res.status(400).send('Only draft estimates can be deleted');
+  if (rows[0].status !== 'draft' && !rows[0].is_test) return res.status(400).send('Only draft estimates can be deleted');
 
   // Delete PDF file if exists
   if (rows[0].pdf_filename) {
@@ -690,6 +708,12 @@ router.post('/:id/delete', async (req, res) => {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
+  }
+
+  // Test docs stay freely deletable even when convert-linked: clear the
+  // converted invoice's back-reference first so the FK doesn't block the delete.
+  if (rows[0].is_test) {
+    await pool.query('UPDATE invoices SET estimate_id = NULL WHERE estimate_id = $1', [req.params.id]);
   }
 
   // Lines cascade via ON DELETE CASCADE

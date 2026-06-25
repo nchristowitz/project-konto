@@ -111,6 +111,13 @@
         <label for="notes">Notes</label>
         <textarea id="notes" name="notes" rows="3"><%= clientData ? clientData.notes || '' : '' %></textarea>
       </div>
+      <div class="form-group full">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_test" <%= clientData && clientData.is_test ? 'checked' : '' %>>
+          Test client (sandbox)
+        </label>
+        <span class="form-hint">Invoices and estimates for this client are test documents: separate TEST numbering, never counted in revenue or tax exports, and deletable at any status. Use it to test sending, views and the full loop without touching real data.</span>
+      </div>
     </div>
     <div class="form-actions">
       <button type="submit"><%= clientData ? 'Save changes' : 'Create client' %></button>

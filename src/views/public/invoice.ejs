@@ -15,7 +15,9 @@
     <% } %>
   </div>
   <div class="invoice-document">
-    <% if ((invoice.status === 'paid' && !creditRef) || invoice.status === 'cancelled') { %>
+    <% if (invoice.is_test) { %>
+      <div class="inv-watermark inv-watermark-test">TEST</div>
+    <% } else if ((invoice.status === 'paid' && !creditRef) || invoice.status === 'cancelled') { %>
       <div class="inv-watermark inv-watermark-<%= invoice.status %>"><%= invoice.status %></div>
     <% } %>
     <div class="inv-header">
