@@ -4,6 +4,25 @@ const nodemailer = require('nodemailer');
 const config = require('../config');
 const { pool } = require('../db');
 
+// Currency for client-facing emails: symbol-prefixed for the common currencies
+// (€4,284.00), code-suffixed otherwise (4,284.00 SEK). en-US grouping only — no
+// ICU/locale-data dependency.
+const CURRENCY_SYMBOL = { EUR: '€', USD: '$', GBP: '£', JPY: '¥' };
+function formatMoney(amount, currency) {
+  const n = Number(amount) || 0;
+  const abs = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = n < 0 ? '-' : '';
+  return CURRENCY_SYMBOL[currency] ? `${sign}${CURRENCY_SYMBOL[currency]}${abs}` : `${sign}${abs} ${currency}`;
+}
+
+// Long date like "June 26, 2026", built from UTC parts so a 'YYYY-MM-DD' DATE
+// string never shifts a day (matches the rest of the app's date handling).
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function formatLongDate(d) {
+  const dt = new Date(d);
+  return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCDate()}, ${dt.getUTCFullYear()}`;
+}
+
 let transporter = null;
 
 async function getTransporter() {
@@ -43,24 +62,26 @@ async function sendInvoiceEmail(invoice) {
   const clientEmail = invoice.client_snapshot?.email || invoice.client_email;
   if (!clientEmail) throw new Error('Client has no email address');
 
-  const contactName = invoice.client_snapshot?.contact_person || invoice.client_snapshot?.name || 'there';
   const link = `${config.baseUrl}/i/${invoice.view_token}`;
   const isCreditNote = !!invoice.credits_invoice_id;
   const docTitle = isCreditNote ? 'Credit note' : 'Invoice';
+  const sender = config.senderName || 'Konto';
+  const docNoun = isCreditNote ? 'a credit note' : 'an invoice';
+
+  // Third-person, system-style wording (like FreshBooks) — reads as if an
+  // automated service sent the document on the sender's behalf.
+  let opening = `${sender} sent you ${docNoun} (${invoice.number}) for ${formatMoney(invoice.total, invoice.currency)}`;
+  if (!isCreditNote && invoice.due_date) opening += ` that's due on ${formatLongDate(invoice.due_date)}`;
+  opening += '.';
 
   const mailOptions = {
     from: config.emailFrom || '"Konto" <noreply@localhost>',
     to: clientEmail,
-    subject: `${docTitle} ${invoice.number} from ${config.senderName || 'Konto'}`,
-    text: `Hi ${contactName},
+    subject: `${sender} sent you ${docNoun} (${invoice.number})`,
+    text: `${opening}
 
-Please find ${docTitle.toLowerCase()} ${invoice.number} for ${invoice.currency} ${Number(invoice.total).toFixed(2)}.
-
-View online: ${link}
-${invoice.due_date ? `Due date: ${new Date(invoice.due_date).toISOString().slice(0, 10)}` : ''}
-
-Best regards,
-${config.senderName || 'Konto'}`,
+View it online:
+${link}`,
   };
 
   // Attach PDF if available
@@ -96,23 +117,20 @@ async function sendReminderEmail(invoice) {
   const clientEmail = invoice.client_snapshot?.email || invoice.client_email;
   if (!clientEmail) throw new Error('Client has no email address');
 
-  const contactName = invoice.client_snapshot?.contact_person || invoice.client_snapshot?.name || 'there';
   const link = `${config.baseUrl}/i/${invoice.view_token}`;
+  const sender = config.senderName || 'Konto';
+  const dueClause = invoice.due_date ? `was due on ${formatLongDate(invoice.due_date)}` : 'is past due';
 
   const info = await transport.sendMail({
     from: config.emailFrom || '"Konto" <noreply@localhost>',
     to: clientEmail,
-    subject: `Reminder: Invoice ${invoice.number} is overdue`,
-    text: `Hi ${contactName},
+    subject: `Reminder: invoice (${invoice.number}) from ${sender} is past due`,
+    text: `This is a reminder that invoice (${invoice.number}) for ${formatMoney(invoice.total, invoice.currency)} ${dueClause}.
 
-This is a friendly reminder that invoice ${invoice.number} for ${invoice.currency} ${Number(invoice.total).toFixed(2)} was due on ${invoice.due_date ? new Date(invoice.due_date).toISOString().slice(0, 10) : 'receipt'}.
+View it online:
+${link}
 
-View online: ${link}
-
-If you've already made payment, please disregard this message.
-
-Best regards,
-${config.senderName || 'Konto'}`,
+If you've already paid, please disregard this reminder.`,
   });
 
   await pool.query(`
@@ -133,22 +151,22 @@ async function sendEstimateEmail(estimate) {
   const clientEmail = estimate.client_snapshot?.email;
   if (!clientEmail) throw new Error('Client has no email address');
 
-  const contactName = estimate.client_snapshot?.contact_person || estimate.client_snapshot?.name || 'there';
   const link = `${config.baseUrl}/e/${estimate.view_token}`;
+  const sender = config.senderName || 'Konto';
+
+  // Third-person, system-style wording to match the invoice emails.
+  let opening = `${sender} sent you an estimate (${estimate.number}) for ${formatMoney(estimate.total, estimate.currency)}`;
+  if (estimate.valid_until) opening += ` that's valid until ${formatLongDate(estimate.valid_until)}`;
+  opening += '.';
 
   const mailOptions = {
     from: config.emailFrom || '"Konto" <noreply@localhost>',
     to: clientEmail,
-    subject: `Estimate ${estimate.number} from ${config.senderName || 'Konto'}`,
-    text: `Hi ${contactName},
+    subject: `${sender} sent you an estimate (${estimate.number})`,
+    text: `${opening}
 
-Please find estimate ${estimate.number} for ${estimate.currency} ${Number(estimate.total).toFixed(2)}.
-
-View and accept online: ${link}
-${estimate.valid_until ? `Valid until: ${new Date(estimate.valid_until).toISOString().slice(0, 10)}` : ''}
-
-Best regards,
-${config.senderName || 'Konto'}`,
+View and accept it online:
+${link}`,
   };
 
   if (estimate.pdf_filename) {
