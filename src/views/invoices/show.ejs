@@ -26,7 +26,7 @@
 <% if (query.error === 'pdf_failed_send') { %>
   <div class="notice notice-error">PDF generation failed, so the invoice was NOT sent. Fix the issue and retry, or use "Mark as sent (no email)" to record it without the e-invoice PDF.</div>
 <% } %>
-<% if (query.error && !['send_failed', 'remind_failed', 'pdf_failed'].includes(query.error)) { %>
+<% if (query.error && !['send_failed', 'remind_failed', 'pdf_failed', 'pdf_failed_send'].includes(query.error)) { %>
   <div class="notice notice-error"><%= query.error %></div>
 <% } %>
 <div class="page-header">

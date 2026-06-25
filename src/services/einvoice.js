@@ -55,10 +55,15 @@ function buildUblInvoice({ invoice, lines, profile, client, bankAccount, creditR
     customerParty['cac:Party']['cac:PostalAddress']['cbc:AdditionalStreetName'] = client.address_line2;
   }
   if (client.vat_number) {
-    customerParty['cac:Party']['cac:PartyTaxScheme'] = [{
+    // The CUSTOMER's PartyTaxScheme is a single object, NOT an array like the
+    // supplier's. @e-invoice-eu/core's EN16931 schema models AccountingCustomerParty
+    // with one PartyTaxScheme; passing an array fails validation ("must be object")
+    // and blocks the PDF — which breaks every invoice to a VAT-registered client
+    // (e.g. reverse-charge EU B2B).
+    customerParty['cac:Party']['cac:PartyTaxScheme'] = {
       'cbc:CompanyID': client.vat_number,
       'cac:TaxScheme': { 'cbc:ID': 'VAT' },
-    }];
+    };
   }
 
   // Build tax total
